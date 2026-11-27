@@ -1018,7 +1018,7 @@ const shieldAv=`<span class="av-sq" style="background:var(--black);border-radius
 const go=v=>{S.cli=v;render();};
 function vCliente(){
  const V={home:cHome,casos:cCasos,chats:cChats,cuenta:cCuenta,marcas:cMarcas,triage:cTriage,resultado:cResultado,talleres:cTalleres,
-  login:cLogin,registro:cRegistro,confirmar:cConfirmar,caso:cCaso,chat:cChat,historial:cHistorial}[S.cli]||cHome;
+  login:cLogin,olvide:(window.cOlvide||cHome),registro:cRegistro,confirmar:cConfirmar,caso:cCaso,chat:cChat,historial:cHistorial}[S.cli]||cHome;
  const tabOf={home:'home',marcas:'home',casos:'casos',caso:'casos',historial:'casos',chats:'chats',chat:'chats',cuenta:'cuenta'};
  const mios=S.user?S.casos.filter(c=>c.pat===S.user.pat):[];
  const nAcc=mios.filter(c=>c.estado===2).length, nChat=mios.filter(c=>c.estado===6).length;
@@ -1127,7 +1127,7 @@ function cLogin(){
   <div class="field"><label for="lpw">Contraseña</label><input id="lpw" class="inp" type="password" value="${esc(L.pass)}" oninput="S.login.pass=this.value" autocomplete="current-password"></div>
   ${L.err?`<div class="note n-crit" style="margin-bottom:12px">${I('alert',18)}<div>${L.err}</div></div>`:''}
   <button class="btn b-red" id="btn-login" onclick="hacerLogin()">Ingresar</button>
-  <button class="btn b-ghost" id="btn-ir-registro" style="margin-top:8px" onclick="go('registro')">Crear cuenta</button>
+  <button class="btn b-ghost" id="btn-ir-registro" style="margin-top:8px" onclick="go('registro')">Crear cuenta</button><button id="btn-olvide" class="muted small" style="display:block;margin:12px auto 0;font-weight:600;text-decoration:underline" onclick="S.olv=null;go('olvide')">Olvidé mi contraseña</button>
   ${tip('Probá con <b>AB123CD</b> y la clave <b>hilux2018</b>',"S.login.pat='AB123CD';S.login.pass='hilux2018';render()")}</div>`};
 }
 function hacerLogin(){const L=S.login,u=CLIENTES.find(c=>c.pat===L.pat&&c.pass===L.pass);
@@ -1690,6 +1690,7 @@ function wCasos(){
 function vWeb(){
  const M={home:wHome,triage:wTriage,resultado:wResultado,talleres:wResultado,
   login:()=>wCenter(['Ingresar'],'Ingresar','',cLogin().body),
+  olvide:()=>wCenter(['Ingresar','Contraseña'],'Olvidé mi contraseña','',cOlvide().body),
   registro:()=>wCenter(['Crear cuenta'],'Crear cuenta','Una cuenta por vehículo. Tu usuario es la patente.',cRegistro().body,580),
   confirmar:()=>wCenter(['Talleres','Pedir turno'],'Pedir turno',tal(S.tallerElegido).n,cConfirmar().body,620),
   casos:wCasos,caso:wCasos,chat:wCasos,chats:wCasos,
@@ -1813,7 +1814,7 @@ async function loadRole(k){
   const [vs,ps]=await Promise.all([sb.from('vehiculos').select('*'),sb.from('perfiles').select('*')]);
   const P={};(ps.data||[]).forEach(p=>P[p.id]=p);
   C.clientes=(vs.data||[]).map(v=>mkCli(v,P[v.propietario_id]));
-  if(k==='fratello'){const st=await sb.rpc('staff_cuentas');C.staff=st.data||[];}
+  if(k==='fratello'){const [st,sc]=await Promise.all([sb.rpc('staff_cuentas'),sb.from('solicitudes_clave').select('*').is('atendida_at',null).eq('descartada',false).order('created_at',{ascending:false})]);C.staff=st.data||[];C.solic=sc.data||[];}
   if(k==='cliente') C.u=C.clientes.find(c=>(vs.data||[]).some(v=>v.patente===c.pat&&v.propietario_id===C.user.id))||null;
   if(k==='mecanico'){
    const pats=[...new Set(C.casos.map(c=>c.pat))],mios=new Set(C.casos.map(c=>c.id));
@@ -1834,7 +1835,7 @@ function suscribir(k){
  if(C.ch){C.sb.removeChannel(C.ch);C.ch=null;}
  C.chUser=uid; if(!uid) return;
  let ch=C.sb.channel('rt-'+k+'-'+uid);
- ['casos','mensajes','opciones','pagos','taller_agenda'].forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pedirRecarga(k));});
+ ['casos','mensajes','opciones','pagos','taller_agenda','solicitudes_clave'].forEach(t=>{ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pedirRecarga(k));});
  C.ch=ch.subscribe();
 }
 function pedirRecarga(k){clearTimeout(D[k].t);D[k].t=setTimeout(async()=>{await loadRole(k);if(CTX_OF(S.role)===k)safeRender();},450);}
@@ -2004,7 +2005,8 @@ function staffGate(k){
   <div class="field"><label for="sp-${k}">Contraseña</label><input id="sp-${k}" class="inp" type="password" autocomplete="${reg?'new-password':'current-password'}" value="${esc(f.pass)}" oninput="S.staff.${k}.pass=this.value" placeholder="${reg?'mín. 6':''}"></div>
   ${f.err?`<div class="note n-crit" style="margin-bottom:12px">${I('alert',18)}<div>${esc(f.err)}</div></div>`:''}
   <button class="btn b-red" id="btn-staff-${k}" onclick="${reg?`staffRegistro('${k}')`:`staffLogin('${k}')`}">${reg?'Crear cuenta':'Ingresar'}</button>
-  <button class="btn b-ghost" style="margin-top:8px" onclick="S.staff.${k}.modo='${reg?'login':'registro'}';S.staff.${k}.err='';render()">${reg?'Ya tengo cuenta':'Crear cuenta'}</button></div>`};
+  <button class="btn b-ghost" style="margin-top:8px" onclick="S.staff.${k}.modo='${reg?'login':'registro'}';S.staff.${k}.err='';render()">${reg?'Ya tengo cuenta':'Crear cuenta'}</button>
+  ${reg?'':`<p class="muted small" style="text-align:center;margin-top:12px">¿Olvidaste la contraseña? Pedile al mostrador de Fratello que te genere una nueva desde el panel.</p>`}</div>`};
 }
 window.staffLogin=async function(k){const f=S.staff[k];busy(true);
  const {error}=await D[k].sb.auth.signInWithPassword({email:f.email.trim().toLowerCase(),password:f.pass});
@@ -2094,7 +2096,7 @@ function fTallerForm(){
   :`<div class="pcard"><h3 class="t-h" style="font-size:20px">Cuentas del taller</h3><p class="muted small" style="margin:4px 0 10px">Con estas cuentas el mecánico ve sus casos, propone turnos y pide repuestos.</p>
    ${mecs.length?mecs.map(s=>`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)"><span class="av-sq" style="background:var(--black);color:var(--gold);width:34px;height:34px;font-size:13px;border-radius:50%">${esc(ini(s.nombre||s.email))}</span>
      <div style="flex:1;min-width:0"><b>${esc(s.nombre||'—')}</b><div class="muted small" style="overflow:hidden;text-overflow:ellipsis">${esc(s.email)}</div></div>
-     <button class="btn b-ghost b-sm" style="width:auto" onclick="quitarRol('${esc(s.email)}')">Quitar</button></div>`).join(''):'<div class="note n-warn">'+I('alert',18)+'<div>Sin cuenta vinculada: el taller no puede atender casos desde la app.</div></div>'}
+     <button class="btn b-ghost b-sm" style="width:auto" onclick="resetClave({user_id:'${s.id}',quien:'${esc(s.nombre||s.email)}',usuario:'${esc(s.email)}'})">Nueva clave</button><button class="btn b-ghost b-sm" style="width:auto" onclick="quitarRol('${esc(s.email)}')">Quitar</button></div>`).join(''):'<div class="note n-warn">'+I('alert',18)+'<div>Sin cuenta vinculada: el taller no puede atender casos desde la app.</div></div>'}
    <div class="field" style="margin-top:12px"><label for="tm">Vincular cuenta por email</label><input id="tm" class="inp" type="email" value="${esc(d.mail)}" oninput="S.talDraft.mail=this.value" placeholder="mecanico@gmail.com"></div>
    <button class="btn b-red b-sm" id="btn-vincular" onclick="vincularMecanico('${t.id}')">${I('link',16)} Vincular</button>
    <p class="muted small" style="margin-top:8px">El mecánico tiene que crear antes su cuenta desde la vista Mecánico.</p></div>`}
@@ -2134,6 +2136,99 @@ window.vincularMecanico=async function(id){
  if(await act(()=>q(D.fratello.sb.rpc('asignar_rol',{p_email:m,p_rol:'mecanico',p_taller:id})),'Cuenta vinculada al taller','check')){S.talDraft.mail='';render();}
 };
 window.quitarRol=email=>act(()=>q(D.fratello.sb.rpc('asignar_rol',{p_email:email,p_rol:'cliente',p_taller:null})),'Acceso quitado','check');
+
+
+/* ---------- contraseñas: pedido, restablecimiento y cambio ---------- */
+const waNum=t=>{let d=String(t||'').replace(/\D/g,'');if(!d)return '';if(d.startsWith('00'))d=d.slice(2);if(d.startsWith('0'))d=d.slice(1);
+ if(d.startsWith('54')&&!d.startsWith('549'))d='549'+d.slice(2);if(!d.startsWith('54'))d='549'+d;return d;};
+const soloDig=t=>String(t||'').replace(/\D/g,'').slice(-8);
+window.cOlvide=function(){
+ const f=S.olv||(S.olv={pat:'',tel:'',ok:false,err:''});
+ return {tab:false,head:hBar('Olvidé mi contraseña','',"go('login')"),body:`<div class="pad">
+  ${f.ok?`<div class="note n-ok" style="margin:6px 0 14px">${I('check',18)}<div><b>Listo, recibimos tu pedido.</b> El mostrador de Fratello te escribe al celular registrado con una contraseña temporal. Cuando entres, te va a pedir que la cambies.</div></div>
+    <button class="btn b-red" onclick="S.olv=null;go('login')">Volver al ingreso</button>`
+  :`<p class="muted" style="margin:4px 0 14px">Por seguridad, la contraseña nueva te la da el mostrador de Fratello. Dejanos la patente y tu celular, y te escribimos.</p>
+   <div class="field"><label for="op">Patente</label><input id="op" class="inp plate" maxlength="8" value="${esc(f.pat)}" oninput="S.olv.pat=norm(this.value);this.value=S.olv.pat" placeholder="AB123CD"></div>
+   <div class="field"><label for="ot">Celular</label><input id="ot" class="inp" inputmode="tel" value="${esc(f.tel)}" oninput="S.olv.tel=this.value" placeholder="+54 351 000-0000"></div>
+   ${f.err?`<div class="note n-crit" style="margin-bottom:12px">${I('alert',18)}<div>${esc(f.err)}</div></div>`:''}
+   <button class="btn b-red" id="btn-pedir-clave" onclick="pedirClave()">Pedir contraseña nueva</button>
+   <p class="muted small" style="text-align:center;margin-top:10px">Si el celular no coincide con el de la cuenta, el mostrador te va a pedir la tarjeta verde.</p>`}</div>`};
+};
+window.pedirClave=async function(){const f=S.olv;
+ if(f.pat.length<6){f.err='Escribí la patente.';render();return;}
+ if(String(f.tel).replace(/\D/g,'').length<8){f.err='Escribí tu celular.';render();return;}
+ busy(true);const {error}=await D.cliente.sb.rpc('pedir_clave',{p_patente:f.pat,p_telefono:f.tel});busy(false);
+ if(error){f.err=msgErr(error);render();return;}f.ok=true;f.err='';render();
+};
+async function llamarAdmin(body){
+ const {data:{session}}=await D.fratello.sb.auth.getSession();if(!session)throw new Error('Volvé a entrar al panel.');
+ const r=await fetch(SB_URL+'/functions/v1/admin-cuentas',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+session.access_token},body:JSON.stringify(body)});
+ const j=await r.json().catch(()=>({}));if(!r.ok||j.error)throw new Error(j.error||'No se pudo completar.');return j;
+}
+window.resetClave=async function(o){
+ if(!confirm('¿Generar una contraseña temporal para '+(o.quien||'esta cuenta')+'? La actual deja de funcionar.'))return;
+ busy(true);
+ try{const j=await llamarAdmin({accion:'reset',patente:o.patente||null,user_id:o.user_id||null,solicitud:o.solicitud||null});
+  await recargar();busy(false);render();mostrarClave(j.clave,o);}
+ catch(e){busy(false);toast(msgErr(e),'alert');}
+};
+function mostrarClave(clave,o){
+ const usuario=o.usuario||o.patente||'',wa=waNum(o.tel),
+  msg='Hola'+(o.quien?' '+first(o.quien):'')+', te escribimos de Fratello Repuestos. Tu contraseña temporal es '+clave+' (usuario: '+usuario+'). Entrá en https://facundo4250.github.io/fratello/ y la app te va a pedir que la cambies.';
+ $('#modal-root').innerHTML=`<div class="overlay" style="align-items:center" onclick="if(event.target===this)closeModal()"><div class="sheet">
+  <div class="grab"></div><h3>Contraseña temporal</h3>
+  <p class="muted" style="margin:6px 0 12px">Para <b style="color:var(--ink)">${esc(o.quien||usuario)}</b>${usuario?` · usuario <b class="mono" style="color:var(--ink)">${esc(usuario)}</b>`:''}. Se muestra una sola vez.</p>
+  <div class="mono" id="clave-temp" style="font-size:34px;font-weight:800;letter-spacing:.08em;text-align:center;background:var(--gold-soft);border-radius:14px;padding:14px 8px">${clave}</div>
+  <p class="muted small" style="margin:10px 0 12px">Cuando entre con esta clave, la app le pide que la cambie. Pasásela solo al celular registrado de la cuenta.</p>
+  <button class="btn b-ghost" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(msg).replace(/"/g,'&quot;')});toast('Mensaje copiado','check')">${I('file',17)} Copiar mensaje</button>
+  ${wa?`<a class="btn b-ok" style="margin-top:8px;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}">${I('chat',17)} Enviar por WhatsApp</a>`:''}
+  <button class="btn b-ghost" style="margin-top:8px" onclick="closeModal()">Listo</button></div></div>`;
+}
+window.descartarSolicitud=id=>act(()=>q(D.fratello.sb.from('solicitudes_clave').update({descartada:true,atendida_por:(D.fratello.user||{}).id}).eq('id',id)),'Pedido descartado','check');
+function cardSolicitudes(){
+ const L=D.fratello.solic||[];if(!L.length)return '';
+ return `<div class="pcard"><div class="ph"><div><h3>Pedidos de contraseña nueva · ${L.length}</h3><div class="muted small" style="margin-top:4px">Antes de generar la clave, confirmá que el celular coincida. Si no coincide, pedile foto de la tarjeta verde.</div></div></div>
+  ${L.map((r,i)=>{const c=cli(r.patente),coincide=c&&soloDig(c.tel)&&soloDig(c.tel)===soloDig(r.telefono_informado);
+   return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0;${i?'border-top:1px solid var(--line-2)':''}">
+    <span class="plate sm">${esc(r.patente)}</span>
+    <div style="flex:1;min-width:220px"><b>${esc(c?c.nombre:'—')}</b><div class="muted small">Registrado: <span class="mono">${esc(c?c.tel:'—')}</span> · Informó: <span class="mono">${esc(r.telefono_informado||'—')}</span> · ${fCreado(r.created_at)}</div></div>
+    <span class="pill ${coincide?'p-ok':'p-warn'}">${coincide?'Celular coincide':'No coincide'}</span>
+    <button class="btn b-red b-sm" style="width:auto" id="btn-clave-${r.id}" onclick="resetClave({patente:'${esc(r.patente)}',solicitud:${r.id},quien:'${esc(c?c.nombre:'')}',tel:'${esc(c?c.tel:'')}'})">Generar clave</button>
+    <button class="btn b-ghost b-sm" style="width:auto" onclick="descartarSolicitud(${r.id})">Descartar</button></div>`;}).join('')}</div>`;
+}
+const _fClientes=window.fClientes;
+window.fClientes=function(){const h=_fClientes(),i=h.indexOf('<div class="note n-gold"');return i<0?cardSolicitudes()+h:h.slice(0,i)+cardSolicitudes()+h.slice(i);};
+const _fFicha=window.fFicha;
+window.fFicha=function(){const c=cli(S.fraCli),h=_fFicha(),i=h.indexOf('<div class="kpis">');
+ const bar=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px"><button class="btn b-ghost b-sm" style="width:auto" id="btn-reset-cliente" onclick="resetClave({patente:'${esc(c.pat)}',quien:'${esc(c.nombre)}',tel:'${esc(c.tel)}'})">${I('key',16)} Generar contraseña temporal</button></div>`;
+ return i<0?bar+h:h.slice(0,i)+bar+h.slice(i);};
+/* cambio de contraseña (y obligatorio después de una clave temporal) */
+window.abrirCambioClave=function(k,forzado){
+ S._cc={k,forzado:!!forzado};
+ $('#modal-root').innerHTML=`<div class="overlay" style="align-items:center" ${forzado?'':'onclick="if(event.target===this)closeModal()"'}><div class="sheet"><div class="grab"></div>
+  <h3>${forzado?'Elegí tu contraseña':'Cambiar contraseña'}</h3>
+  <p class="muted" style="margin:6px 0 14px">${forzado?'Entraste con una contraseña temporal. Elegí una nueva para seguir.':'Mínimo 6 caracteres.'}</p>
+  <div class="field"><label for="cc1">Contraseña nueva</label><input id="cc1" class="inp" type="password" autocomplete="new-password"></div>
+  <div class="field"><label for="cc2">Repetir</label><input id="cc2" class="inp" type="password" autocomplete="new-password"></div>
+  <button class="btn b-red" id="btn-guardar-clave" onclick="guardarClave()">Guardar</button>
+  ${forzado?'':'<button class="btn b-ghost" style="margin-top:8px" onclick="closeModal()">Cancelar</button>'}</div></div>`;
+};
+window.guardarClave=async function(){const a=$('#cc1').value,b=$('#cc2').value,k=S._cc.k;
+ if(a.length<6){toast('Mínimo 6 caracteres','alert');return;}if(a!==b){toast('Las contraseñas no coinciden','alert');return;}
+ busy(true);const {error}=await D[k].sb.auth.updateUser({password:a,data:{debe_cambiar:false}});
+ if(error){busy(false);toast(msgErr(error),'alert');return;}
+ await loadRole(k);busy(false);S._cc=null;closeModal();render();toast('Contraseña actualizada','check');
+};
+const _render1=window.render;
+window.render=function(){_render1();const k=CTX_OF(S.role),u=D[k].user;
+ if(u&&u.user_metadata&&u.user_metadata.debe_cambiar&&!(S._cc&&S._cc.k===k)) abrirCambioClave(k,true);};
+const _cCuenta=window.cCuenta;
+window.cCuenta=function(){const r=_cCuenta();if(!r||!r.body)return r;
+ r.body=r.body.replace(`<button class="row" onclick="salir('cliente')"`,`<button class="row" id="btn-cambiar-clave" onclick="abrirCambioClave('cliente')">${ich('key','dark')}<div class="rt"><b>Cambiar contraseña</b></div><span class="chev">${I('right',20)}</span></button><button class="row" onclick="salir('cliente')"`);return r;};
+const _mCuenta2=window.mCuenta;
+window.mCuenta=function(){const r=_mCuenta2();r.body=r.body.replace(`<button class="row" onclick="salir('mecanico')"`,`<button class="row" onclick="abrirCambioClave('mecanico')">${ich('key','dark')}<div class="rt"><b>Cambiar contraseña</b></div></button><button class="row" onclick="salir('mecanico')"`);return r;};
+const _staffWho=window.staffWho;
+window.staffWho=function(){return _staffWho().replace('>Cerrar sesión</button>','>Cerrar sesión</button> · <button onclick="abrirCambioClave(\'fratello\')" style="color:inherit;opacity:.7;font-size:12px;text-decoration:underline">Cambiar clave</button>');};
 
 /* ---------- arranque ---------- */
 (async()=>{
