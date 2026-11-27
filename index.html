@@ -1426,11 +1426,11 @@ function enviarPedido(){
    ===================================================================== */
 function vFratello(){
  const pend=S.casos.filter(c=>c.estado===5).length+S.casos.filter(c=>c.estado===7).length;
- const nav=[['pedidos','inbox','Pedidos',pend,pend>0],['casos','list','Casos',S.casos.length],['ranking','trophy','Ranking',TALLERES.length],['clientes','user','Clientes',CLIENTES.length],['marcas','tag','Marcas',MARCAS.length]];
+ const nav=[['pedidos','inbox','Pedidos',pend,pend>0],['casos','list','Casos',S.casos.length],['talleres','wrench','Talleres',TALLERES.filter(t=>t.activo!==false).length],['ranking','trophy','Ranking',TALLERES.length],['clientes','user','Clientes',CLIENTES.length],['marcas','tag','Marcas',MARCAS.length]];
  let body; if(S.fra==='clientes'&&S.fraCli) body=fFicha(); else if(S.fra==='pedidos'&&S.fraCaso) body=fCaso();
- else body=({pedidos:fPedidos,casos:fCasos,ranking:fRanking,clientes:fClientes,marcas:fMarcas}[S.fra]||fPedidos)();
+ else body=({pedidos:fPedidos,casos:fCasos,talleres:(window.fTalleres||fPedidos),ranking:fRanking,clientes:fClientes,marcas:fMarcas}[S.fra]||fPedidos)();
  return `<div class="desk"><div class="panel"><aside class="side"><div class="lg"><img src="${LOGO}" alt="Fratello Repuestos"><div>Mostrador</div></div>
-  <nav>${nav.map(([k,ic,n,c,hot])=>`<button class="${S.fra===k?'on':''}" id="nav-${k}" onclick="S.fra='${k}';S.fraCaso=null;S.fraCli=null;render()">${I(ic,19)}${n}<span class="cnt ${hot&&S.fra!==k?'hot':''}">${c}</span></button>`).join('')}</nav>
+  <nav>${nav.map(([k,ic,n,c,hot])=>`<button class="${S.fra===k?'on':''}" id="nav-${k}" onclick="S.fra='${k}';S.fraCaso=null;S.fraCli=null;S.fraTal=null;render()">${I(ic,19)}${n}<span class="cnt ${hot&&S.fra!==k?'hot':''}">${c}</span></button>`).join('')}</nav>
   <div class="who">${staffWho()}</div></aside><main class="main">${body}</main></div></div>`;
 }
 const kpi=(v,l,ic,c='')=>`<div class="kpi">${ich(ic,c,20)}<div><div class="kv mono">${v}</div><div class="kl">${l}</div></div></div>`;
@@ -1764,6 +1764,7 @@ function mapTalleres(ts,te,ag){
   return {id:t.id,n:t.nombre,mec:t.responsable,zona:t.zona||'',dist:t.dist_km!=null?Number(t.dist_km):'—',
    cal:t.calificacion!=null?Number(t.calificacion):'—',c:t.color||'#24242A',bio:t.bio||'',
    esp:(te||[]).filter(x=>x.taller_id===t.id).map(x=>x.especialidad_id),agTs,_agenda:Object.keys(agTs),agenda:[],
+   activo:t.activo!==false,dir:t.direccion||'',tel:t.telefono||'',distRaw:t.dist_km,calRaw:t.calificacion,colRaw:t.color,
    est:EST_L[t.estado_lealtad]||'activa',
    st:{casos:t.total_casos||0,sinRep:t.total_sin_rep||0,pedidos:t.total_pedidos||0,comprados:t.total_comprados||0}};});
 }
@@ -1812,6 +1813,7 @@ async function loadRole(k){
   const [vs,ps]=await Promise.all([sb.from('vehiculos').select('*'),sb.from('perfiles').select('*')]);
   const P={};(ps.data||[]).forEach(p=>P[p.id]=p);
   C.clientes=(vs.data||[]).map(v=>mkCli(v,P[v.propietario_id]));
+  if(k==='fratello'){const st=await sb.rpc('staff_cuentas');C.staff=st.data||[];}
   if(k==='cliente') C.u=C.clientes.find(c=>(vs.data||[]).some(v=>v.patente===c.pat&&v.propietario_id===C.user.id))||null;
   if(k==='mecanico'){
    const pats=[...new Set(C.casos.map(c=>c.pat))],mios=new Set(C.casos.map(c=>c.id));
@@ -2029,6 +2031,109 @@ const _mAgenda=window.mAgenda;
 window.mAgenda=function(){const r=_mAgenda();r.body+=`<div class="sec"><div class="sec-h"><h3>Agregar hueco</h3></div><div class="card">
  <label class="muted small" for="nuevo-hueco">Día y hora en que podés recibir un vehículo</label><input type="datetime-local" id="nuevo-hueco" class="inp" style="margin-top:6px">
  <button class="btn b-red b-sm" id="btn-hueco" style="margin-top:10px" onclick="agregarHueco()">${I('plus',16)} Agregar a la agenda</button></div><div style="height:8px"></div></div>`;return r;};
+
+/* ---------- Panel: gestión de talleres y cuentas ---------- */
+const COLORES=['#C9190D','#1C5C90','#A87210','#14724B','#24242A','#5B3FA0','#9C1309','#6F737D'];
+const staff=()=>D.fratello.staff||[];
+window.abrirTaller=function(id){S.fraTal=id;S.talDraft=null;render();};
+window.fTalleres=function(){
+ if(S.fraTal) return fTallerForm();
+ const st=staff(),pend=st.filter(s=>s.rol==='cliente'),mecs=st.filter(s=>s.rol==='mecanico'),mostr=st.filter(s=>s.rol==='fratello');
+ const act=TALLERES.filter(t=>t.activo),baja=TALLERES.filter(t=>!t.activo);
+ const ops=`<option value="">Elegí qué es…</option>${act.map(t=>`<option value="mec:${t.id}">Mecánico · ${esc(t.n)}</option>`).join('')}<option value="fratello">Mostrador de Fratello (ve precios y tarjetas verdes)</option>`;
+ const casos=id=>S.casos.filter(c=>c.taller===id).length;
+ const fila=t=>{const k=stats(t),m=mecs.filter(s=>s.taller_id===t.id);
+  return `<tr class="ck" onclick="abrirTaller('${t.id}')"${t.activo?'':' style="opacity:.6"'}><td><div style="display:flex;gap:10px;align-items:center">${avTaller(t,32)}<div><b>${esc(t.n)}</b><div class="muted small">${esc(t.mec)}</div></div></div></td>
+   <td>${esc(t.zona)}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${t.esp.map(e=>ESP[e]?`<span class="pill p-n" style="font-size:11px">${ESP[e].n}</span>`:'').join('')}</div></td>
+   <td class="mono">${m.length?m.length+' cuenta'+(m.length>1?'s':''):'<span class="muted">Sin cuenta</span>'}</td><td class="mono">${casos(t.id)}</td>
+   <td><span class="pill ${k.c}">${k.estado}</span></td><td><span class="pill ${t.activo?'p-ok':'p-n'}">${t.activo?'Activo':'De baja'}</span></td>
+   <td style="text-align:right;color:var(--brand)">${I('right',18)}</td></tr>`;};
+ return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h2>Talleres</h2><div class="lead">Alta, edición y baja de los talleres de la red. Acá también habilitás las cuentas nuevas.</div></div>
+  <button class="btn b-red b-sm" id="btn-nuevo-taller" style="width:auto" onclick="abrirTaller('nuevo')">${I('plus',16)} Nuevo taller</button></div>
+  <div class="kpis">${kpi(act.length,'Talleres activos','wrench','ok')}${kpi(baja.length,'Dados de baja','lock','')}${kpi(mecs.length,'Mecánicos con cuenta','user','dark')}${kpi(pend.length,'Cuentas por habilitar','bell',pend.length?'red':'')}</div>
+  ${pend.length?`<div class="pcard"><div class="ph"><div><h3>Cuentas por habilitar</h3><div class="muted small" style="margin-top:4px">Se crearon desde la vista Mecánico o Panel Fratello. Elegí qué es cada una.</div></div></div>
+   ${pend.map((s,i)=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 0;${i?'border-top:1px solid var(--line-2)':''}">
+    <div style="flex:1;min-width:200px"><b>${esc(s.nombre||'—')}</b><div class="muted small">${esc(s.email)} · creada ${fCreado(s.creada)}</div></div>
+    <select class="isml" id="hab-${i}" style="min-width:230px">${ops}</select>
+    <button class="btn b-red b-sm" id="btn-hab-${i}" style="width:auto" onclick="habilitarCuenta(${i})">Habilitar</button></div>`).join('')}</div>`:''}
+  <div class="tw"><table><thead><tr><th>Taller</th><th>Zona</th><th>Especialidades</th><th>Cuentas</th><th>Casos</th><th>Lealtad</th><th>Estado</th><th></th></tr></thead>
+   <tbody>${act.concat(baja).map(fila).join('')||'<tr><td colspan="8" class="muted">Todavía no hay talleres.</td></tr>'}</tbody></table></div>
+  <div class="pcard" style="margin-top:14px"><div class="ph"><div><h3>Cuentas del mostrador</h3><div class="muted small" style="margin-top:4px">Ven todos los casos, precios y la tarjeta verde.</div></div></div>
+   ${mostr.map((s,i)=>`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;${i?'border-top:1px solid var(--line-2)':''}"><div style="flex:1"><b>${esc(s.nombre||'—')}</b><div class="muted small">${esc(s.email)}</div></div>
+    ${s.id===(D.fratello.user||{}).id?'<span class="pill p-n">Vos</span>':`<button class="btn b-ghost b-sm" style="width:auto" onclick="quitarRol('${esc(s.email)}')">Quitar acceso</button>`}</div>`).join('')}</div>`;
+};
+function fTallerForm(){
+ const nuevo=S.fraTal==='nuevo',t=nuevo?null:tal(S.fraTal);
+ if(!nuevo&&!t){S.fraTal=null;return fTalleres();}
+ if(!S.talDraft||S.talDraft.id!==S.fraTal) S.talDraft=nuevo
+  ?{id:'nuevo',nombre:'',responsable:'',zona:'',direccion:'',telefono:'',dist:'',cal:'',color:COLORES[TALLERES.length%COLORES.length],bio:'',esp:[],mail:''}
+  :{id:t.id,nombre:t.n,responsable:t.mec,zona:t.zona,direccion:t.dir,telefono:t.tel,dist:t.distRaw==null?'':t.distRaw,cal:t.calRaw==null?'':t.calRaw,color:t.colRaw||'#24242A',bio:t.bio,esp:t.esp.slice(),mail:''};
+ const d=S.talDraft,mecs=nuevo?[]:staff().filter(s=>s.rol==='mecanico'&&s.taller_id===t.id),nCasos=nuevo?0:S.casos.filter(c=>c.taller===t.id).length;
+ const f=(id,lab,key,ph,type='text',extra='')=>`<div class="field"><label for="${id}">${lab}</label><input id="${id}" class="inp" type="${type}" ${extra} value="${esc(d[key])}" placeholder="${ph}" oninput="S.talDraft.${key}=this.value"></div>`;
+ return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div><h2>${nuevo?'Nuevo taller':esc(t.n)}</h2>
+   <div class="lead">${nuevo?'Cargá los datos del taller. Después vinculás la cuenta del mecánico.':(t.activo?'Activo':'Dado de baja: no aparece para los clientes')+' · '+nCasos+' caso'+(nCasos!==1?'s':'')+' en la app'}</div></div>
+  <button class="btn b-ghost b-sm" style="width:auto" onclick="S.fraTal=null;S.talDraft=null;render()">${I('left',17)} Talleres</button></div>
+ <div class="split"><div>
+  <div class="pcard"><h3 class="t-h" style="font-size:20px;margin-bottom:12px">Datos</h3>
+   <div class="g2">${f('tn','Nombre del taller','nombre','Taller San Martín')}${f('tr','Responsable','responsable','Rubén Ortiz')}</div>
+   <div class="g2">${f('tz','Zona o barrio','zona','Alta Córdoba')}${f('tt','Teléfono','telefono','+54 351 …','tel')}</div>
+   ${f('td','Dirección','direccion','Calle y número')}
+   <div class="g2">${f('tk','Distancia a Fratello (km)','dist','2.5','number','step="0.1" min="0"')}${f('tc','Calificación (0 a 5)','cal','4.5','number','step="0.1" min="0" max="5"')}</div>
+   <div class="field"><label for="tb">Descripción <i>· la ve el cliente</i></label><textarea id="tb" class="inp" style="min-height:70px" oninput="S.talDraft.bio=this.value" placeholder="Qué hace mejor, qué vehículos atiende.">${esc(d.bio)}</textarea></div>
+   <div class="field"><label>Color del avatar</label><div style="display:flex;gap:8px;flex-wrap:wrap">${COLORES.map(c=>`<button onclick="S.talDraft.color='${c}';render()" aria-label="Color ${c}" style="width:30px;height:30px;border-radius:8px;background:${c};${d.color===c?'outline:3px solid var(--gold);outline-offset:2px':''}"></button>`).join('')}</div></div>
+  </div>
+  <div class="pcard"><h3 class="t-h" style="font-size:20px;margin-bottom:4px">Especialidades</h3><p class="muted small" style="margin-bottom:10px">El diagnóstico de la web solo le manda casos de lo que marques acá. Con "Mecánica general" también puede aparecer como alternativa.</p>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px">${Object.entries(ESP).map(([k,v])=>`<label class="chk" style="margin:0"><input type="checkbox" id="esp-${k}" ${d.esp.includes(k)?'checked':''} onchange="talEsp('${k}',this.checked)"><span>${v.n}</span></label>`).join('')}</div></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+   <button class="btn b-red" id="btn-guardar-taller" style="flex:2;min-width:180px" onclick="guardarTaller()">${I('check',18)} ${nuevo?'Dar de alta':'Guardar cambios'}</button>
+   ${nuevo?'':`<button class="btn b-ghost" id="btn-baja-taller" style="flex:1;min-width:150px" onclick="bajaTaller('${t.id}',${!t.activo})">${t.activo?'Dar de baja':'Reactivar'}</button>`}</div>
+  ${nuevo?'':`<div style="margin-top:10px">${nCasos||mecs.length?`<p class="muted small" style="display:flex;gap:6px;align-items:flex-start">${I('info',14)}<span>No se puede eliminar porque tiene ${nCasos?nCasos+' caso'+(nCasos>1?'s':''):''}${nCasos&&mecs.length?' y ':''}${mecs.length?'cuentas vinculadas':''}. Dalo de baja: deja de aparecer y conserva la historia.</span></p>`
+    :`<button class="btn b-ghost b-sm" id="btn-eliminar-taller" style="width:auto;color:var(--crit)" onclick="eliminarTaller('${t.id}')">${I('x',15)} Eliminar taller</button>`}</div>`}
+ </div><div>
+  ${nuevo?`<div class="pcard"><h3 class="t-h" style="font-size:20px">Cuenta del mecánico</h3><p class="muted" style="margin-top:6px">Primero dalo de alta. Después vinculás la cuenta que el mecánico cree desde la vista Mecánico.</p></div>`
+  :`<div class="pcard"><h3 class="t-h" style="font-size:20px">Cuentas del taller</h3><p class="muted small" style="margin:4px 0 10px">Con estas cuentas el mecánico ve sus casos, propone turnos y pide repuestos.</p>
+   ${mecs.length?mecs.map(s=>`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)"><span class="av-sq" style="background:var(--black);color:var(--gold);width:34px;height:34px;font-size:13px;border-radius:50%">${esc(ini(s.nombre||s.email))}</span>
+     <div style="flex:1;min-width:0"><b>${esc(s.nombre||'—')}</b><div class="muted small" style="overflow:hidden;text-overflow:ellipsis">${esc(s.email)}</div></div>
+     <button class="btn b-ghost b-sm" style="width:auto" onclick="quitarRol('${esc(s.email)}')">Quitar</button></div>`).join(''):'<div class="note n-warn">'+I('alert',18)+'<div>Sin cuenta vinculada: el taller no puede atender casos desde la app.</div></div>'}
+   <div class="field" style="margin-top:12px"><label for="tm">Vincular cuenta por email</label><input id="tm" class="inp" type="email" value="${esc(d.mail)}" oninput="S.talDraft.mail=this.value" placeholder="mecanico@gmail.com"></div>
+   <button class="btn b-red b-sm" id="btn-vincular" onclick="vincularMecanico('${t.id}')">${I('link',16)} Vincular</button>
+   <p class="muted small" style="margin-top:8px">El mecánico tiene que crear antes su cuenta desde la vista Mecánico.</p></div>`}
+ </div></div>`;
+}
+window.talEsp=function(k,on){const e=S.talDraft.esp;if(on&&!e.includes(k))e.push(k);if(!on)S.talDraft.esp=e.filter(x=>x!==k);};
+window.guardarTaller=async function(){
+ const d=S.talDraft;
+ if(!d.nombre.trim()||!d.responsable.trim()){toast('Completá nombre y responsable','alert');return;}
+ if(!d.esp.length){toast('Marcá al menos una especialidad','alert');return;}
+ const cal=d.cal===''?null:+d.cal;if(cal!=null&&(cal<0||cal>5)){toast('La calificación va de 0 a 5','alert');return;}
+ const sb=D.fratello.sb,row={nombre:d.nombre.trim(),responsable:d.responsable.trim(),zona:d.zona.trim()||null,direccion:d.direccion.trim()||null,
+  telefono:d.telefono.trim()||null,dist_km:d.dist===''?null:+d.dist,calificacion:cal,color:d.color,bio:d.bio.trim()||null};
+ let id=d.id;
+ const ok=await act(async()=>{
+  if(id==='nuevo'){const r=await q(sb.from('talleres').insert(row).select('id').single());id=r.id;}
+  else await q(sb.from('talleres').update(row).eq('id',id));
+  await q(sb.from('taller_especialidades').delete().eq('taller_id',id));
+  await q(sb.from('taller_especialidades').insert(d.esp.map(e=>({taller_id:id,especialidad_id:e}))));
+ },d.id==='nuevo'?'Taller dado de alta':'Cambios guardados','check');
+ if(ok){S.fraTal=id;S.talDraft=null;render();}
+};
+window.bajaTaller=(id,activar)=>act(()=>q(D.fratello.sb.from('talleres').update({activo:!!activar}).eq('id',id)),activar?'Taller reactivado':'Taller dado de baja. Ya no aparece para los clientes.','check');
+window.eliminarTaller=async function(id){
+ if(!confirm('¿Eliminar este taller? No se puede deshacer.'))return;
+ const ok=await act(()=>q(D.fratello.sb.from('talleres').delete().eq('id',id)),'Taller eliminado','check');
+ if(ok){S.fraTal=null;S.talDraft=null;render();}
+};
+window.habilitarCuenta=async function(i){
+ const s=staff().filter(x=>x.rol==='cliente')[i],v=($('#hab-'+i)||{}).value;if(!s)return;if(!v){toast('Elegí si es mecánico de un taller o mostrador','alert');return;}
+ const mec=v.startsWith('mec:');
+ await act(()=>q(D.fratello.sb.rpc('asignar_rol',{p_email:s.email,p_rol:mec?'mecanico':'fratello',p_taller:mec?v.slice(4):null})),
+  mec?'Cuenta habilitada como mecánico':'Cuenta habilitada como mostrador','check');
+};
+window.vincularMecanico=async function(id){
+ const m=(S.talDraft.mail||'').trim();if(!m){toast('Escribí el email de la cuenta','alert');return;}
+ if(await act(()=>q(D.fratello.sb.rpc('asignar_rol',{p_email:m,p_rol:'mecanico',p_taller:id})),'Cuenta vinculada al taller','check')){S.talDraft.mail='';render();}
+};
+window.quitarRol=email=>act(()=>q(D.fratello.sb.rpc('asignar_rol',{p_email:email,p_rol:'cliente',p_taller:null})),'Acceso quitado','check');
 
 /* ---------- arranque ---------- */
 (async()=>{
