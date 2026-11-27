@@ -1018,7 +1018,7 @@ const shieldAv=`<span class="av-sq" style="background:var(--black);border-radius
 const go=v=>{S.cli=v;render();};
 function vCliente(){
  const V={home:cHome,casos:cCasos,chats:cChats,cuenta:cCuenta,marcas:cMarcas,triage:cTriage,resultado:cResultado,talleres:cTalleres,
-  login:cLogin,olvide:(window.cOlvide||cHome),registro:cRegistro,confirmar:cConfirmar,caso:cCaso,chat:cChat,historial:cHistorial}[S.cli]||cHome;
+  login:cLogin,consulta:(window.cConsulta||cHome),olvide:(window.cOlvide||cHome),registro:cRegistro,confirmar:cConfirmar,caso:cCaso,chat:cChat,historial:cHistorial}[S.cli]||cHome;
  const tabOf={home:'home',marcas:'home',casos:'casos',caso:'casos',historial:'casos',chats:'chats',chat:'chats',cuenta:'cuenta'};
  const mios=S.user?S.casos.filter(c=>c.pat===S.user.pat):[];
  const nAcc=mios.filter(c=>c.estado===2).length, nChat=mios.filter(c=>c.estado===6).length;
@@ -1041,7 +1041,7 @@ function cHome(){
            :`<button class="btn b-dark b-sm" id="btn-ingresar" onclick="S.tallerElegido=null;S.login.err='';go('login')">Ingresar</button>`}</div>`,
  body:`<div class="hero"><div class="ey">${S.user?'Hola, '+esc(first(S.user.nombre)):'Casa de repuestos · Córdoba'}</div>
    <h2>¿Qué le pasa<br>a tu auto?</h2><p>Te mandamos al especialista que corresponde y te conseguimos el repuesto justo.</p>
-   <button class="btn b-red" id="btn-empezar" onclick="startTriage()">${I('search',19)} Empezar</button></div>
+   <button class="btn b-red" id="btn-empezar" onclick="startTriage()">${I('search',19)} Empezar</button><button class="btn b-gold" id="btn-consulta" style="margin-top:8px" onclick="S.cons=null;go('consulta')">${I('tag',18)} Solo quiero un repuesto</button></div>
   ${acc?`<div class="sec" style="padding-top:2px">${goCard(`abrirCaso('${acc.id}')`,ich(acc.estado===2?'cal':'chat','gold'),acc.estado===2?'Confirmá tu turno':'Elegí tus repuestos',acc.estado===2?esc(acc.turno.slot)+' · '+tal(acc.taller).n:'Tenés las opciones en el chat',true)}</div>`:''}
   <div class="sec"><div class="sec-h"><h3>Lo más común</h3><button onclick="startTriage()">Ver todo</button></div>
    <div class="qs">${quick.map(c=>`<button onclick="startTriage('${c.id}')">${ich(c.ic,'red',21)}${c.t}</button>`).join('')}</div></div>
@@ -1083,7 +1083,7 @@ function atras(){
 function cTriage(){
  const t=S.tri;
  if(!t.cat) return {tab:false,head:hBar('¿Qué le pasa?','Elegí lo que más se parezca',"go('home')"),body:`<div class="pad">
-  <div class="symgrid">${TRIAGE.map(c=>`<button class="sym tap" onclick="elegirSintoma('${c.id}')">${ich(c.ic,'red',20)}<div><b>${c.t}</b><br><span>${c.s}</span></div></button>`).join('')}</div>
+  <div class="symgrid">${TRIAGE.filter(x=>x.id!=='consulta').map(c=>`<button class="sym tap" onclick="elegirSintoma('${c.id}')">${ich(c.ic,'red',20)}<div><b>${c.t}</b><br><span>${c.s}</span></div></button>`).join('')}</div>
   <p class="muted small" style="text-align:center;margin:14px 0 6px">No hace falta saber de mecánica.</p></div>`};
  const cat=triCat(t.cat),q=cat.qs[t.paso-1],n=cat.qs.length;
  return {tab:false,head:hBar(cat.t,'Pregunta '+t.paso+' de '+n,'atras()')+`<div style="background:var(--surface);padding-bottom:10px"><div class="prog"><div style="width:${t.paso/(n+1)*100}%"></div></div></div>`,
@@ -1193,7 +1193,7 @@ function cCasos(){
  const mios=S.casos.filter(c=>c.pat===S.user.pat), v=S.user.veh;
  return {head:hBig('Mis casos',esc(S.user.pat)+(v.marca?' · '+esc(v.marca)+' '+esc(v.modelo):'')),body:`<div class="sec" style="padding-top:2px">
   <div class="brow" style="margin-bottom:12px"><button class="btn b-red b-sm" onclick="startTriage()">${I('plus',17)} Nuevo turno</button>
-   <button class="btn b-ghost b-sm" onclick="go('historial')">${I('pulse',17)} Historia</button></div>
+   <button class="btn b-ghost b-sm" onclick="go('historial')">${I('pulse',17)} Historia</button><button class="btn b-ghost b-sm" onclick="S.cons=null;go('consulta')">${I('tag',17)} Repuesto</button></div>
   ${mios.length?`<div class="group">${mios.map(c=>{const x=tal(c.taller),cat=triCat(c.cat),hot=[2,6].includes(c.estado);
    return `<button class="row" onclick="abrirCaso('${c.id}')">${ich(cat.ic,hot?'gold':'red')}<div class="rt"><b>${cat.t}</b><span>${x.n} · ${c.id}</span>
     <span style="margin-top:5px"><span class="pill ${EST[c.estado].c}">${EST[c.estado].n}</span></span></div><span class="chev">${I('right',20)}</span></button>`;}).join('')}</div>`
@@ -1607,10 +1607,10 @@ function wHome(){
    <h1>No te vendemos un repuesto. <em>Te resolvemos el problema.</em></h1>
    <p class="hp">Contanos qué le pasa al auto. Te mandamos al taller que se especializa en eso y, cuando el mecánico sepa qué lleva, te pasamos las opciones con precio para que elijas y pagues.</p>
    <div class="hbtns"><button class="btn b-red" id="w-empezar" onclick="startTriage()">${I('search',19)} Empezar diagnóstico</button>
-    <button class="btn b-dark" onclick="go('casos')">${I('clip',18)} Ya tengo un caso</button></div>
+    <button class="btn b-gold" id="w-consulta" onclick="S.cons=null;go('consulta')">${I('tag',18)} Consultar un repuesto</button><button class="btn b-dark" onclick="go('casos')">${I('clip',18)} Ya tengo un caso</button></div>
    <div class="htrust">${[['steer','Talleres por especialidad'],['chat','Precio por chat'],['pulse','La historia de tu auto']].map(([i,t])=>`<span>${I(i,16)} ${t}</span>`).join('')}</div></div>
   <div class="hcard"><div class="hct">¿Qué le pasa a tu auto?</div><p>Elegí lo que más se parezca. Después son dos preguntas.</p>
-   <div class="hsym">${TRIAGE.map(c=>`<button onclick="startTriage('${c.id}')">${ich(c.ic,'',19)}<span>${c.t}</span></button>`).join('')}</div></div>
+   <div class="hsym">${TRIAGE.filter(x=>x.id!=='consulta').map(c=>`<button onclick="startTriage('${c.id}')">${ich(c.ic,'',19)}<span>${c.t}</span></button>`).join('')}</div></div>
  </div></section>
  <section class="wstats"><div class="wrap">${[[red.length,'talleres en la red'],[esps.length,'especialidades cubiertas'],[MARCAS.length,'marcas en tres líneas'],['4 h','hábiles para cotizar']].map(([v,l])=>`<div><b class="disp mono">${v}</b><span>${l}</span></div>`).join('')}</div></section>
  <section class="wsec" id="como"><div class="wrap"><div class="eyb">Cómo funciona</div><h2>Del síntoma al repuesto, sin buscar nada</h2>
@@ -1644,7 +1644,7 @@ function wFooter(){
 function wTriage(){
  const t=S.tri;
  if(!t.cat) return wPage(['Diagnóstico'],'¿Qué le pasa a tu auto?','Elegí lo que más se parezca. No hace falta saber de mecánica.',
-  `<div class="wsym">${TRIAGE.map(c=>`<button class="sym tap" onclick="elegirSintoma('${c.id}')">${ich(c.ic,'red',20)}<div><b>${c.t}</b><br><span>${c.s}</span></div></button>`).join('')}</div>`);
+  `<div class="wsym">${TRIAGE.filter(x=>x.id!=='consulta').map(c=>`<button class="sym tap" onclick="elegirSintoma('${c.id}')">${ich(c.ic,'red',20)}<div><b>${c.t}</b><br><span>${c.s}</span></div></button>`).join('')}</div>`);
  const cat=triCat(t.cat),q=cat.qs[t.paso-1],n=cat.qs.length;
  return wPage(['Diagnóstico',cat.t],cat.t,'',`<div class="wtri">
   <aside class="card"><div class="muted small" style="font-weight:700;text-transform:uppercase;letter-spacing:.08em">Tu diagnóstico</div>
@@ -1677,7 +1677,7 @@ function wCasos(){
  const c=S.cliCaso?caso(S.cliCaso):null, v=S.user.veh;
  const list=`<aside><div class="card" style="padding:12px">
    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><span class="plate sm">${S.user.pat}</span><div class="muted small">${v.marca?esc(v.marca)+' '+esc(v.modelo):''}</div></div>
-   <button class="btn b-red b-sm" style="width:100%" onclick="startTriage()">${I('plus',16)} Nuevo turno</button>
+   <button class="btn b-red b-sm" style="width:100%" onclick="startTriage()">${I('plus',16)} Nuevo turno</button><button class="btn b-gold b-sm" style="width:100%;margin-top:8px" onclick="S.cons=null;go('consulta')">${I('tag',16)} Consultar repuesto</button>
    <button class="btn b-ghost b-sm" style="width:100%;margin-top:8px" onclick="go('historial')">${I('pulse',16)} Historia del auto</button></div>
   <div class="group" style="margin-top:12px">${mios.map(x=>{const ct=triCat(x.cat);return `<button class="row ${x.id===S.cliCaso?'wsel':''}" onclick="S.cliCaso='${x.id}';S._bottom=true;go('caso')">${ich(ct.ic,[2,6].includes(x.estado)?'gold':'red',17)}
    <div class="rt"><b>${ct.t}</b><span>${x.id}</span><span style="margin-top:4px"><span class="pill ${EST[x.estado].c}">${EST[x.estado].n}</span></span></div></button>`;}).join('')||'<div class="row"><div class="rt"><span>Sin casos todavía.</span></div></div>'}</div></aside>`;
@@ -1690,6 +1690,7 @@ function wCasos(){
 function vWeb(){
  const M={home:wHome,triage:wTriage,resultado:wResultado,talleres:wResultado,
   login:()=>wCenter(['Ingresar'],'Ingresar','',cLogin().body),
+  consulta:()=>S.user?wCenter(['Consultar repuesto'],'Consultar un repuesto','Ya sabés qué necesitás: decinos y te pasamos opciones con precio, sin diagnóstico.',cConsulta().body,680):(S.despues='consulta',wCenter(['Consultar repuesto'],'Consultar un repuesto','Entrá con la patente de tu vehículo.',cLogin().body)),
   olvide:()=>wCenter(['Ingresar','Contraseña'],'Olvidé mi contraseña','',cOlvide().body),
   registro:()=>wCenter(['Crear cuenta'],'Crear cuenta','Una cuenta por vehículo. Tu usuario es la patente.',cRegistro().body,580),
   confirmar:()=>wCenter(['Talleres','Pedir turno'],'Pedir turno',tal(S.tallerElegido).n,cConfirmar().body,620),
@@ -1759,7 +1760,7 @@ const fCreado=iso=>{const a=fFecha(iso),h=fFecha(new Date().toISOString()),ay=fF
 /* ---------- mapeo base -> modelo del prototipo ---------- */
 const EST_L={activa:'activa',observacion:'observacion',revision:'revision'};
 function mapTalleres(ts,te,ag){
- return (ts||[]).map(t=>{
+ return (ts||[]).filter(t=>!t.es_mostrador).map(t=>{
   const agTs={};(ag||[]).filter(a=>a.taller_id===t.id&&a.libre&&Date.parse(a.inicio)>Date.now())
     .sort((a,b)=>a.inicio<b.inicio?-1:1).forEach(a=>{agTs[fSlot(a.inicio)]=a.inicio;});
   return {id:t.id,n:t.nombre,mec:t.responsable,zona:t.zona||'',dist:t.dist_km!=null?Number(t.dist_km):'—',
@@ -1769,7 +1770,7 @@ function mapTalleres(ts,te,ag){
    est:EST_L[t.estado_lealtad]||'activa',
    st:{casos:t.total_casos||0,sinRep:t.total_sin_rep||0,pedidos:t.total_pedidos||0,comprados:t.total_comprados||0}};});
 }
-const stubTaller=id=>({id,n:'Taller',mec:'—',zona:'',dist:'—',cal:'—',c:'#6F737D',bio:'',esp:[],agTs:{},_agenda:[],agenda:[],est:'activa',st:{casos:0,sinRep:0,pedidos:0,comprados:0}});
+const stubTaller=(id,mostr)=>({id,n:mostr?'Mostrador Fratello':'Taller',mec:mostr?'Fratello':'—',zona:mostr?'Mostrador':'',dist:'—',cal:'—',c:mostr?'#0B0B0D':'#6F737D',bio:'',activo:true,esp:[],agTs:{},_agenda:[],agenda:[],est:'activa',st:{casos:0,sinRep:0,pedidos:0,comprados:0}});
 function mkCli(v,p){
  return {pat:v.patente,nombre:(p&&p.nombre)||'—',tel:(p&&p.telefono)||'',
   veh:{marca:v.marca||'',modelo:v.modelo||'',anio:v.anio||'',motor:v.motor||'',km:v.km||''},
@@ -1790,7 +1791,8 @@ function mapCaso(r){
  (r.mensajes||[]).sort((a,b)=>a.id-b.id).forEach(m=>{const h=fHora(m.created_at);
   chat[m.hilo].push(m.tipo==='sistema'?{de:'sys',txt:m.texto,h}:m.tipo==='opciones'?{de:'mostrador',t:'opciones',h}:{de:ROLDE[m.autor_rol]||'sys',txt:m.texto,h});});
  const pg=(r.pagos||[]).sort((a,b)=>b.id-a.id)[0];
- return {id:r.codigo,_id:r.id,estado:r.estado,pat:r.patente,cat:r.categoria,resp:r.respuestas||[],esp:r.especialidad_id,urg:r.urgencia,
+ const cons=r.tipo==='consulta',vEst=cons&&r.estado===8?(r.entrega==='envio'?13:12):cons&&r.estado===9?14:r.estado;
+ return {id:r.codigo,_id:r.id,estado:vEst,_est:r.estado,tipo:r.tipo||'taller',entrega:r.entrega,dir:r.direccion_entrega,pat:r.patente,cat:r.categoria,resp:r.respuestas||[],esp:cons?'consulta':r.especialidad_id,urg:r.urgencia,
   hint:r.pista,taller:r.taller_id,creado:fCreado(r.created_at),_creado:r.created_at,_cerrado:r.cerrado_at,km:r.km_ingreso,
   turno:r.turno?{slot:fSlot(r.turno),estado:r.estado>=3?'confirmado':'propuesto'}:null,turnoNota:r.turno_nota,
   diag:r.diagnostico,criterio:r.criterio,nota:r.nota_taller,manoObra:r.mano_obra!=null?Number(r.mano_obra):null,pedido,elegidas,
@@ -1848,7 +1850,7 @@ function applyCtx(){
  const C=D[CTX_OF(S.role)];
  S.casos=C.casos; TALLERES=C.talleres; CLIENTES=C.clientes.slice();
  S.casos.forEach(c=>{if(!CLIENTES.find(x=>x.pat===c.pat))CLIENTES.push(mkCli({patente:c.pat,created_at:c._creado},null));
-  if(!TALLERES.find(t=>t.id===c.taller))TALLERES.push(stubTaller(c.taller));});
+  if(!TALLERES.find(t=>t.id===c.taller))TALLERES.push(stubTaller(c.taller,c.tipo==='consulta'));});
  TALLERES.forEach(t=>{const tom=new Set(S.casos.filter(c=>c.taller===t.id&&c.turno&&c.estado>=2&&c.estado<=4).map(c=>c.turno.slot));
   const a=t._agenda.filter(s=>!tom.has(s));t.agenda=a.length?a:['A coordinar'];});
  HIST.length=0;C.hist.forEach(h=>HIST.push(h));
@@ -1888,7 +1890,7 @@ window.hacerLogin=async function(){
  busy(true);const {error}=await D.cliente.sb.auth.signInWithPassword({email:patEmail(L.pat),password:L.pass});
  if(error){busy(false);L.err='Patente o contraseña incorrecta.';render();return;}
  await loadRole('cliente');suscribir('cliente');busy(false);S.login={pat:'',pass:'',err:''};applyCtx();
- toast('Hola, '+first(S.user?S.user.nombre:''),'user');go(S.tallerElegido?'confirmar':'casos');
+ toast('Hola, '+first(S.user?S.user.nombre:''),'user');const sig=S.despues||(S.tallerElegido?'confirmar':'casos');S.despues=null;go(sig);
 };
 window.tvElegido=function(inp){const f=inp.files&&inp.files[0];if(!f)return;
  if(f.size>5*1024*1024){toast('El archivo pesa más de 5 MB','alert');return;}
@@ -1907,7 +1909,7 @@ window.hacerRegistro=async function(){
    await q(sb.from('vehiculos').update({tarjeta_verde_path:path}).eq('patente',R.pat));
   }
   await loadRole('cliente');suscribir('cliente');busy(false);
-  S.reg={pat:'',pass:'',pass2:'',nombre:'',tel:'',tv:false};toast('Cuenta creada','check');go(S.tallerElegido?'confirmar':'casos');
+  S.reg={pat:'',pass:'',pass2:'',nombre:'',tel:'',tv:false};toast('Cuenta creada','check');const sig=S.despues||(S.tallerElegido?'confirmar':'casos');S.despues=null;go(sig);
  }catch(e){busy(false);toast(msgErr(e),'alert');}
 };
 window.pedirTurno=async function(){
@@ -2088,7 +2090,7 @@ function fTallerForm(){
    <div class="field"><label>Color del avatar</label><div style="display:flex;gap:8px;flex-wrap:wrap">${COLORES.map(c=>`<button onclick="S.talDraft.color='${c}';render()" aria-label="Color ${c}" style="width:30px;height:30px;border-radius:8px;background:${c};${d.color===c?'outline:3px solid var(--gold);outline-offset:2px':''}"></button>`).join('')}</div></div>
   </div>
   <div class="pcard"><h3 class="t-h" style="font-size:20px;margin-bottom:4px">Especialidades</h3><p class="muted small" style="margin-bottom:10px">El diagnóstico de la web solo le manda casos de lo que marques acá. Con "Mecánica general" también puede aparecer como alternativa.</p>
-   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px">${Object.entries(ESP).map(([k,v])=>`<label class="chk" style="margin:0"><input type="checkbox" id="esp-${k}" ${d.esp.includes(k)?'checked':''} onchange="talEsp('${k}',this.checked)"><span>${v.n}</span></label>`).join('')}</div></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px">${Object.entries(ESP).filter(([k])=>k!=='consulta').map(([k,v])=>`<label class="chk" style="margin:0"><input type="checkbox" id="esp-${k}" ${d.esp.includes(k)?'checked':''} onchange="talEsp('${k}',this.checked)"><span>${v.n}</span></label>`).join('')}</div></div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
    <button class="btn b-red" id="btn-guardar-taller" style="flex:2;min-width:180px" onclick="guardarTaller()">${I('check',18)} ${nuevo?'Dar de alta':'Guardar cambios'}</button>
    ${nuevo?'':`<button class="btn b-ghost" id="btn-baja-taller" style="flex:1;min-width:150px" onclick="bajaTaller('${t.id}',${!t.activo})">${t.activo?'Dar de baja':'Reactivar'}</button>`}</div>
@@ -2232,6 +2234,92 @@ const _mCuenta2=window.mCuenta;
 window.mCuenta=function(){const r=_mCuenta2();r.body=r.body.replace(`<button class="row" onclick="salir('mecanico')"`,`<button class="row" onclick="abrirCambioClave('mecanico')">${ich('key','dark')}<div class="rt"><b>Cambiar contraseña</b></div></button><button class="row" onclick="salir('mecanico')"`);return r;};
 const _staffWho=window.staffWho;
 window.staffWho=function(){return _staffWho().replace('>Cerrar sesión</button>','>Cerrar sesión</button> · <button onclick="abrirCambioClave(\'fratello\')" style="color:inherit;opacity:.7;font-size:12px;text-decoration:underline">Cambiar clave</button>');};
+
+
+/* ---------- consulta directa de repuestos (sin diagnóstico ni taller) ---------- */
+ESP.consulta={n:'Consulta directa',ic:'search'};
+TRIAGE.push({id:'consulta',ic:'tag',t:'Consulta de repuestos',s:'Sin diagnóstico',qs:[]});
+EST[12]={n:'Listo para retirar',c:'p-ok',d:'Pasá a retirarlo por Fratello.'};
+EST[13]={n:'Enviado',c:'p-ok',d:'Tu pedido va en camino.'};
+EST[14]={n:'Entregado',c:'p-n',d:'Pedido entregado.'};
+const DESC_CONS={5:'El mostrador está armando tus opciones con precio.',6:'Tenés las opciones en el chat. Elegí y pagá.',7:'Pagaste. Estamos preparando tu pedido.',
+ 12:'Ya está listo. Pasá a retirarlo por Fratello.',13:'Tu pedido va en camino.',14:'Pedido entregado.',11:'La consulta quedó cerrada sin compra.'};
+const MARCAS_AUTO=['Toyota','Volkswagen','Ford','Chevrolet','Renault','Peugeot','Fiat','Nissan','Audi','Otra'];
+window.cConsulta=function(){
+ if(!S.user){S.despues='consulta';return needLogin('Consultar repuesto','Entrá con la patente de tu vehículo y te pasamos opciones con precio.');}
+ const d=S.cons||(S.cons={items:[{rubro:'',desc:'',oem:'',cant:1}],criterio:'equilibrado',nota:'',entrega:'retiro',dir:''}),v=S.user.veh;
+ return {tab:false,head:hBar('Consultar repuesto','Sin diagnóstico',"go('home')"),body:`<div class="pad">
+  <div class="note n-info" style="margin-bottom:12px">${I('info',18)}<div>Para cuando ya sabés qué repuesto necesitás. Si no sabés qué tiene el auto, <button style="text-decoration:underline;font-weight:700" onclick="startTriage()">empezá el diagnóstico</button> y te mandamos al taller que corresponde.</div></div>
+  <div class="sec-h" style="margin-top:4px"><h3>Tu vehículo · <span class="mono">${esc(S.user.pat)}</span></h3></div>
+  <div class="g2"><div class="field"><label for="qm">Marca</label><select id="qm" class="inp" onchange="S.user.veh.marca=this.value"><option value="">Elegir</option>${MARCAS_AUTO.map(m=>`<option ${v.marca===m?'selected':''}>${m}</option>`).join('')}</select></div>
+   <div class="field"><label for="qmo">Modelo</label><input id="qmo" class="inp" value="${esc(v.modelo)}" oninput="S.user.veh.modelo=this.value" placeholder="Hilux"></div></div>
+  <div class="g2"><div class="field"><label for="qa">Año</label><select id="qa" class="inp" onchange="S.user.veh.anio=+this.value"><option value="">Elegir</option>${Array.from({length:37},(_,i)=>2026-i).map(y=>`<option ${v.anio==y?'selected':''}>${y}</option>`).join('')}</select></div>
+   <div class="field"><label for="qmot">Motor <i>· ayuda a acertar</i></label><input id="qmot" class="inp" value="${esc(v.motor)}" oninput="S.user.veh.motor=this.value" placeholder="3.0 TDi"></div></div>
+  <div class="sec-h"><h3>Qué necesitás</h3></div>
+  ${d.items.map((it,ix)=>`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px"><b class="muted small" style="text-transform:uppercase;letter-spacing:.06em">Repuesto ${ix+1}</b>
+    ${d.items.length>1?`<button class="icbtn" style="width:32px;height:32px" onclick="S.cons.items.splice(${ix},1);render()" aria-label="Quitar">${I('x',17)}</button>`:''}</div>
+   <div class="field"><label for="qr${ix}">Rubro</label><select id="qr${ix}" class="inp" onchange="S.cons.items[${ix}].rubro=this.value"><option value="">Elegir</option>${RUBROS.map(x=>`<option value="${x.id}" ${it.rubro===x.id?'selected':''}>${x.n}</option>`).join('')}</select></div>
+   <div class="field"><label for="qd${ix}">Qué repuesto</label><input id="qd${ix}" class="inp" value="${esc(it.desc)}" oninput="S.cons.items[${ix}].desc=this.value" placeholder="Pastillas de freno delanteras"></div>
+   <div class="g2"><div class="field" style="margin:0"><label for="qo${ix}">N° original <i>· opc.</i></label><input id="qo${ix}" class="inp" value="${esc(it.oem)}" oninput="S.cons.items[${ix}].oem=this.value"></div>
+    <div class="field" style="margin:0"><label for="qc${ix}">Cantidad</label><input id="qc${ix}" class="inp" type="number" min="1" max="99" value="${it.cant}" oninput="S.cons.items[${ix}].cant=Math.max(1,Math.min(99,+this.value||1))"></div></div></div>`).join('')}
+  ${d.items.length<10?`<button class="btn b-ghost" id="btn-cons-add" style="margin-top:10px" onclick="S.cons.items.push({rubro:'',desc:'',oem:'',cant:1});render()">${I('plus',18)} Agregar otro repuesto</button>`:''}
+  <div class="field" style="margin-top:14px"><label>¿Qué buscás?</label><div class="seg">${Object.entries(CRITERIO).map(([k,c])=>`<button class="${d.criterio===k?'on':''}" id="qcrit-${k}" onclick="S.cons.criterio='${k}';render()">${I(c.ic,20)}<span>${c.n}</span><span class="small" style="font-weight:500;opacity:.75">${c.d}</span></button>`).join('')}</div></div>
+  <div class="note n-gold" style="margin-bottom:12px">${I('shield',18)}<div>En frenos, dirección, suspensión y neumáticos no ofrecemos línea económica sin que un mecánico la habilite.</div></div>
+  <div class="field"><label>Entrega</label>
+   ${[['retiro','store','Retiro en el local','Pasás por Fratello cuando esté listo'],['envio','truck','Envío a domicilio','Te lo llevamos (el costo se coordina por chat)']].map(([k,ic,t,sub])=>`<button class="pay ${d.entrega===k?'on':''}" id="qent-${k}" onclick="S.cons.entrega='${k}';render()">${ich(ic,d.entrega===k?'red':'')}<div><b>${t}</b><span>${sub}</span></div></button>`).join('')}</div>
+  ${d.entrega==='envio'?`<div class="field"><label for="qdir">Dirección de envío</label><input id="qdir" class="inp" value="${esc(d.dir)}" oninput="S.cons.dir=this.value" placeholder="Calle, número, barrio"></div>`:''}
+  <div class="field"><label for="qn">Algo más <i>· opcional</i></label><textarea id="qn" class="inp" style="min-height:64px" oninput="S.cons.nota=this.value" placeholder="Ej.: es la versión 4x4, el anterior duró 40.000 km.">${esc(d.nota)}</textarea></div>
+  <button class="btn b-red" id="btn-enviar-consulta" onclick="enviarConsulta()">${I('send',18)} Enviar consulta</button>
+  <p class="muted small" style="text-align:center;margin:8px 0 6px">No pagás nada ahora. Te pasamos las opciones con precio por el chat.</p></div>`};
+};
+window.enviarConsulta=async function(){
+ const d=S.cons,v=S.user.veh,items=d.items.filter(i=>i.rubro||i.desc.trim());
+ if(!v.marca||!(v.modelo||'').trim()||!v.anio){toast('Completá marca, modelo y año del vehículo','alert');return;}
+ if(!items.length||items.some(i=>!i.rubro||i.desc.trim().length<3)){toast('Elegí el rubro y describí cada repuesto','alert');return;}
+ if(d.entrega==='envio'&&d.dir.trim().length<5){toast('Escribí la dirección de envío','alert');return;}
+ let cod=null;
+ const ok=await act(async()=>{cod=await q(D.cliente.sb.rpc('crear_consulta',{p_patente:S.user.pat,
+   p_items:items.map(i=>({rubro:i.rubro,descripcion:i.desc.trim(),oem:(i.oem||'').trim(),cantidad:i.cant||1})),
+   p_criterio:d.criterio,p_nota:d.nota,p_entrega:d.entrega,p_direccion:d.dir,
+   p_vehiculo:{marca:v.marca,modelo:String(v.modelo||'').trim(),anio:String(v.anio||''),motor:String(v.motor||'').trim(),km:String(v.km||'')}}));},
+  'Consulta enviada. Te respondemos por el chat.','send');
+ if(ok){S.cons=null;S.cliCaso=cod;go('caso');}
+};
+const _cCaso=window.cCaso;
+window.cCaso=function(){const c=caso(S.cliCaso);if(!c||c.tipo!=='consulta')return _cCaso();
+ const e=EST[c.estado]||EST[5],last=c.chat.cliente.filter(m=>m.de!=='sys').slice(-1)[0];
+ const pasos=['Consulta','Opciones','Pagado',c.entrega==='envio'?'Enviado':'Listo','Entregado'],idx={5:1,6:2,7:3,12:4,13:4,14:5}[c.estado]||0;
+ return {head:hBar('Consulta de repuestos',c.id,"go('casos')"),body:`<div class="pad">
+  <div class="status"><div class="k">Estado</div><h2>${e.n}</h2><p class="muted">${DESC_CONS[c.estado]||e.d}</p>
+   ${idx?`<div class="segbar">${pasos.map((_,i)=>`<div class="${i+1<idx?'d':i+1===idx?'c':''}"></div>`).join('')}</div>`:''}</div>
+  ${goCard(`abrirChat('${c.id}')`,shieldAv,c.estado===6?'Elegí tus repuestos':'Chat con Fratello',last?(last.t==='opciones'?'Te pasamos las opciones':esc(last.txt)):'El mostrador está armando tus opciones',c.estado===6)}
+  <div class="sec-h"><h3>Lo que pediste</h3></div><div class="card">${c.pedido.map(p=>`<div class="itm">${ich(rub(p.rubro).ic,'',17)}<div class="rt"><b>${esc(p.desc)}</b><span>${rub(p.rubro).n}${p.cant>1?' · ×'+p.cant:''}${p.oem?' · original '+esc(p.oem):''}</span></div></div>`).join('')}
+   ${c.criterio?`<div style="margin-top:9px"><span class="pill p-gold">${I(CRITERIO[c.criterio].ic,13,2.2)} Buscás: ${CRITERIO[c.criterio].n.toLowerCase()}</span></div>`:''}</div>
+  <div class="sec-h"><h3>Entrega</h3></div><div class="card" style="display:flex;gap:12px;align-items:center">${ich(c.entrega==='envio'?'truck':'store','red')}
+   <div><b style="display:block">${c.entrega==='envio'?'Envío a domicilio':'Retiro en el local'}</b><span class="muted">${c.entrega==='envio'?esc(c.dir||''):'Fratello Repuestos · Córdoba'}</span></div></div>
+  <div style="height:14px"></div></div>`};
+};
+const _opcionesCard=window.opcionesCard;
+window.opcionesCard=function(c,yo){const h=_opcionesCard(c,yo);return c.tipo==='consulta'?h.replace(/<div class="r"><span>Mano de obra[^<]*<\/span><span class="mono">[^<]*<\/span><\/div>/,''):h;};
+const _pintarPago=window.pintarPago;
+window.pintarPago=function(){_pintarPago();const c=caso(S.pago.id);if(!c||c.tipo!=='consulta')return;const m=$('#modal-root');
+ m.innerHTML=m.innerHTML.replace('La mano de obra se la pagás al taller cuando retirás el vehículo.',c.entrega==='envio'?'El costo del envío se coordina por el chat.':'Lo retirás en Fratello cuando esté listo.')
+  .replace('Pasás por Fratello y sale al taller','Pagás cuando lo retirás');};
+const _fCaso=window.fCaso;
+window.fCaso=function(){const c=caso(S.fraCaso);let h=_fCaso();if(!c||c.tipo!=='consulta')return h;
+ h=h.replace('<h3>Diagnóstico del taller</h3>','<h3>Consulta directa del cliente</h3>').replace('Nota interna del mecánico:','Nota del cliente:')
+  .replace(/<div class="field" style="max-width:270px;margin-top:12px"><label for="mo">[\s\S]*?<\/div>/,'')
+  .replace('Despachar al taller',c.entrega==='envio'?'Marcar enviado':'Listo para retirar');
+ const bar=`<div class="note n-info" style="margin-bottom:14px">${I(c.entrega==='envio'?'truck':'store',18)}<div><b>Consulta sin taller.</b> ${c.entrega==='envio'?'Envío a: '+esc(c.dir||''):'Retira en el local'}. La línea económica en rubros de seguridad queda bloqueada porque no hay un mecánico que la habilite.</div></div>`;
+ const i=h.indexOf('<div class="split">');return i<0?bar+h:h.slice(0,i)+bar+h.slice(i);};
+const _fPedidos=window.fPedidos;
+window.fPedidos=function(){const h=_fPedidos(),L=S.casos.filter(c=>c.tipo==='consulta'&&c._est===8);if(!L.length)return h;
+ return h+`<div class="pcard" style="margin-top:14px"><div class="ph"><div><h3>Consultas para entregar · ${L.length}</h3><div class="muted small" style="margin-top:4px">Pedidos directos pagados y preparados. Marcalos cuando el cliente los reciba.</div></div></div>
+  ${L.map((c,i)=>{const u=cli(c.pat)||{nombre:'—'};return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0;${i?'border-top:1px solid var(--line-2)':''}">
+   <span class="mono" style="font-weight:700">${c.id}</span><div style="flex:1;min-width:220px"><b>${esc(u.nombre)}</b> · <span class="mono">${esc(c.pat)}</span>
+   <div class="muted small">${c.entrega==='envio'?'Envío a '+esc(c.dir||''):'Retira en el local'} · ${esc(c.pedido.map(p=>p.desc).join(', '))}</div></div>
+   <button class="btn b-ok b-sm" style="width:auto" id="btn-entregado-${c.id}" onclick="entregarConsulta('${c.id}')">${I('check',16)} Entregado</button></div>`;}).join('')}</div>`;};
+window.entregarConsulta=id=>act(()=>upd('fratello',id,{estado:9}),'Consulta cerrada como entregada','check');
 
 /* ---------- arranque ---------- */
 (async()=>{
