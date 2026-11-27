@@ -2057,7 +2057,10 @@ window.fTalleres=function(){
    ${pend.map((s,i)=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 0;${i?'border-top:1px solid var(--line-2)':''}">
     <div style="flex:1;min-width:200px"><b>${esc(s.nombre||'—')}</b><div class="muted small">${esc(s.email)} · creada ${fCreado(s.creada)}</div></div>
     <select class="isml" id="hab-${i}" style="min-width:230px">${ops}</select>
-    <button class="btn b-red b-sm" id="btn-hab-${i}" style="width:auto" onclick="habilitarCuenta(${i})">Habilitar</button></div>`).join('')}</div>`:''}
+    <button class="btn b-red b-sm" id="btn-hab-${i}" style="width:auto" onclick="habilitarCuenta(${i})">Habilitar</button></div>`).join('')}</div>`
+  :`<div class="pcard" style="display:flex;gap:14px;align-items:flex-start">${ich('user','dark')}<div style="flex:1"><h3 class="t-h" style="font-size:20px">Cuentas por habilitar</h3>
+    <p class="muted" style="margin-top:4px">No hay ninguna esperando. Cuando un mecánico crea su cuenta (en la app, vista <b>Mecánico</b> → <b>Crear cuenta</b>), aparece acá y elegís de qué taller es.</p>
+    <p class="muted small" style="margin-top:6px">También podés vincularla desde la ficha del taller, con el email que usó.</p></div></div>`}
   <div class="tw"><table><thead><tr><th>Taller</th><th>Zona</th><th>Especialidades</th><th>Cuentas</th><th>Casos</th><th>Lealtad</th><th>Estado</th><th></th></tr></thead>
    <tbody>${act.concat(baja).map(fila).join('')||'<tr><td colspan="8" class="muted">Todavía no hay talleres.</td></tr>'}</tbody></table></div>
   <div class="pcard" style="margin-top:14px"><div class="ph"><div><h3>Cuentas del mostrador</h3><div class="muted small" style="margin-top:4px">Ven todos los casos, precios y la tarjeta verde.</div></div></div>
