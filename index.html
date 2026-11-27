@@ -228,7 +228,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 /* ---------- chat ---------- */
 .chatbg{min-height:100%;padding:12px 12px 16px;display:flex;flex-direction:column;gap:7px;
   background:radial-gradient(circle at 20% 20%,rgba(0,0,0,.03) 1px,transparent 1.5px) 0 0/18px 18px,var(--chat)}
-.chatbg.inline{min-height:0;border-radius:14px;max-height:380px;overflow-y:auto}
+.chatbg.inline{min-height:0;border-radius:14px;max-height:max(380px,calc(100vh - 300px));overflow-y:auto}
+.chatbg>*{flex-shrink:0}
 .msg{max-width:84%;padding:8px 11px 6px;border-radius:15px;font-size:14px;line-height:1.4;box-shadow:0 1px 1px rgba(0,0,0,.07)}
 .msg .who{font-size:12px;font-weight:700;margin-bottom:1px}
 .msg .tx{white-space:pre-wrap}
