@@ -1,0 +1,33 @@
+{
+ "id": "./?modo=taller",
+ "name": "Fratello Taller",
+ "short_name": "Fratello Taller",
+ "description": "Casos, turnos y pedidos de repuestos del taller.",
+ "lang": "es-AR",
+ "start_url": "./?modo=taller",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#0B0B0D",
+ "theme_color": "#0B0B0D",
+ "icons": [
+  {
+   "src": "icon-taller-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-taller-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-taller-maskable.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}

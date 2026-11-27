@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function(){var M={cliente:'cliente',taller:'mecanico',panel:'fratello'},m=new URLSearchParams(location.search).get('modo');
+ if(M[m]){window.MODO=m;window.MODO_ROL=M[m];document.documentElement.classList.add('modo-app');}
+ var k=window.MODO||'cliente';
+ document.write('<link rel="manifest" href="manifest-'+k+'.json"><link rel="apple-touch-icon" href="apple-'+k+'.png"><link rel="icon" href="icon-'+k+'-192.png">'
+  +'<meta name="apple-mobile-web-app-title" content="'+({cliente:'Fratello',taller:'Fratello Taller',panel:'Mostrador'}[k])+'">');
+ if('serviceWorker' in navigator&&location.protocol==='https:')window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
+})();
+</script>
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<style>html.modo-app .demobar{display:none!important}html.modo-app{--dbh:0px}</style>
 <meta name="theme-color" content="#0B0B0D"><title>Fratello Repuestos</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&display=swap">
 <style>
@@ -491,7 +503,6 @@ tr.ck{cursor:pointer}tr.ck:hover{background:var(--surface-2)}
 <div id="modal-root"></div>
 <div id="toast-root"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* =====================================================================
    FRATELLO REPUESTOS — prototipo navegable (v2: interfaz de app)
@@ -859,7 +870,7 @@ function seedCasos(){return [
 let TALLERES,CLIENTES,S,NID=305;
 function freshState(){
  TALLERES=[];CLIENTES=[];
- S={role:'web',webEsp:null,cli:'home',user:null,tri:null,tallerElegido:null,cliCaso:null,verPasos:false,
+ S={role:(window.MODO_ROL||'web'),webEsp:null,cli:'home',user:null,tri:null,tallerElegido:null,cliCaso:null,verPasos:false,
     login:{pat:'',pass:'',err:''},reg:{pat:'',pass:'',pass2:'',nombre:'',tel:'',tv:false},
     mec:'casos',mecCaso:null,mecDraft:null,mecHistAll:false,
     fra:'pedidos',fraCaso:null,fraDraft:null,fraCli:null,fraTab:'cliente',
@@ -1726,7 +1737,7 @@ function render(){
 }
 document.querySelectorAll('#rolesw button').forEach(b=>b.onclick=()=>{S.role=b.dataset.r;render();});
 window.addEventListener('resize',()=>{const db=$('#demobar');if(db)document.documentElement.style.setProperty('--dbh',db.offsetHeight+'px');});
-render();
+if(!window.MODO_ROL||window.MODO_ROL==='cliente')render();
 </script>
 <script>
 /* =====================================================================
@@ -2435,6 +2446,20 @@ window.filtrarCasos=function(){const q=(S.casosQ||'').toLowerCase().trim();let v
  const e=$('#sin-resultados');if(e)e.style.display=vis||!q?'none':'block';};
 const _render2=window.render;
 window.render=function(){_render2();if(S.role==='fratello'&&S.fra==='casos'&&!S.fraCaso&&S.casosQ)filtrarCasos();};
+
+
+/* ---------- instalar la app en el celular ---------- */
+let _instalar=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_instalar=e;mostrarInstalar();});
+function mostrarInstalar(){
+ if(!_instalar||!window.MODO||document.getElementById('btn-instalar'))return;
+ const b=document.createElement('button');b.id='btn-instalar';b.className='btn b-gold b-sm';
+ b.style.cssText='position:fixed;right:14px;bottom:86px;z-index:150;width:auto;box-shadow:var(--sh-lg)';
+ b.innerHTML=I('plus',16)+' Instalar app';
+ b.onclick=async()=>{_instalar.prompt();await _instalar.userChoice.catch(()=>{});_instalar=null;b.remove();};
+ document.body.appendChild(b);
+}
+window.addEventListener('appinstalled',()=>{const b=document.getElementById('btn-instalar');if(b)b.remove();toast('App instalada','check');});
 
 /* ---------- arranque ---------- */
 (async()=>{
