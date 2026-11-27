@@ -1796,7 +1796,7 @@ function mapCaso(r){
  return {id:r.codigo,_id:r.id,estado:vEst,_est:r.estado,tipo:r.tipo||'taller',entrega:r.entrega,dir:r.direccion_entrega,pat:r.patente,cat:r.categoria,resp:r.respuestas||[],esp:cons?'consulta':r.especialidad_id,urg:r.urgencia,
   hint:r.pista,taller:r.taller_id,creado:fCreado(r.created_at),_creado:r.created_at,_cerrado:r.cerrado_at,km:r.km_ingreso,
   turno:r.turno?{slot:fSlot(r.turno),estado:r.estado>=3?'confirmado':'propuesto'}:null,turnoNota:r.turno_nota,
-  calif:r.calificacion,coment:r.comentario,auto:r.cierre_auto,revisada:r.calif_revisada,
+  calif:r.calificacion,coment:r.comentario,auto:r.cierre_auto,revisada:r.calif_revisada,_retirado:r.retirado_at,
   diag:r.diagnostico,criterio:r.criterio,nota:r.nota_taller,manoObra:r.mano_obra!=null?Number(r.mano_obra):null,pedido,elegidas,
   pago:pg?(MEDIO[pg.medio]||'Pago')+' · '+fHora(pg.created_at)+(pg.estado==='pendiente'?' · a verificar':''):null,chat};
 }
@@ -2399,6 +2399,42 @@ window.fPedidos=function(){const h=_fPedidos3();
     <span class="mono" style="font-weight:700">${c.id}</span><div style="flex:1;min-width:0"><b>${esc(u.nombre)}</b> <span class="pill ${(EST[c.estado]||{c:'p-n'}).c}" style="margin-left:6px">${(EST[c.estado]||{n:''}).n}</span>
     <div class="muted small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${quien}: ${esc(m.txt||'')} · ${m.h||''}</div></div>${I('right',18,2,'color:var(--brand)')}</button>`;}).join('')}</div>`;
  const i=h.indexOf('<div class="tw">');return i<0?blk+h:h.slice(0,i)+blk+h.slice(i);};
+
+
+/* ---------- Panel → Casos: abiertos / cerrados, agrupados por día ---------- */
+const CERRADOS=[10,11,14,15];
+const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function etiquetaDia(iso){const d=cba(iso),f=fFecha(iso),h=fFecha(new Date().toISOString()),ay=fFecha(new Date(Date.now()-864e5).toISOString());
+ const base=DIAS[d.getUTCDay()]+' '+f.slice(0,5)+(f.slice(6)!==h.slice(6)?'/'+f.slice(6):'');return (f===h?'Hoy · ':f===ay?'Ayer · ':'')+base;}
+window.fCasos=function(){
+ const tab=S.casosTab||'abiertos',cerr=c=>CERRADOS.includes(c.estado);
+ const fechaDe=c=>tab==='cerrados'?(c._retirado||c._cerrado||c._creado):c._creado;
+ const L=S.casos.filter(c=>tab==='cerrados'?cerr(c):!cerr(c)).slice().sort((a,b)=>fechaDe(a)<fechaDe(b)?1:-1);
+ const nA=S.casos.filter(c=>!cerr(c)).length,nC=S.casos.length-nA,grupos=[];
+ L.forEach(c=>{const k=fFecha(fechaDe(c));let g=grupos[grupos.length-1];if(!g||g.k!==k){g={k,lab:etiquetaDia(fechaDe(c)),items:[]};grupos.push(g);}g.items.push(c);});
+ const fila=c=>{const t=tal(c.taller)||{n:'—'},u=cli(c.pat)||{nombre:'—',veh:{}},cat=triCat(c.cat)||{t:''},cons=c.tipo==='consulta';
+  const q=[c.id,c.pat,u.nombre,u.veh.marca,u.veh.modelo,t.n,cat.t,(c.resp||[]).join(' ')].join(' ').toLowerCase();
+  return `<tr class="ck fila-caso" data-q="${esc(q)}" onclick="S.fra='casos';S.fraCaso='${c.id}';S.fraDraft=null;S.fraTab='cliente';S._bottom=true;render()">
+   <td class="mono" style="font-weight:700;white-space:nowrap">${c.id}</td><td class="mono muted">${fHora(fechaDe(c))}</td>
+   <td><b>${esc(u.veh.marca||'')} ${esc(u.veh.modelo||'')}</b> <span class="mono muted">${esc(c.pat)}</span><div class="muted small">${esc(u.nombre)}</div></td>
+   <td class="muted">${cons?'<span class="pill p-gold" style="font-size:11px">Consulta directa</span> ':''}${esc(cons?(c.resp||[]).join(', '):cat.t+' · '+(c.resp[0]||''))}</td>
+   <td>${cons?'<span class="muted">Mostrador</span>':esc(t.n)}</td>
+   <td><span class="pill ${(EST[c.estado]||{c:'p-n'}).c}">${(EST[c.estado]||{n:'—'}).n}</span>${c.calif?`<div style="display:flex;gap:1px;margin-top:4px">${estrellas(c.calif,12)}</div>`:''}</td></tr>`;};
+ return `<h2>Casos</h2><div class="lead">${tab==='cerrados'?'Cerrados: retirados, entregados, sin repuestos o no realizados. Agrupados por el día en que se cerraron.':'Abiertos: todo lo que todavía está en curso. Agrupados por el día en que entraron.'}</div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+   <div class="ptabs" style="margin:0;min-width:280px"><button class="${tab==='abiertos'?'on':''}" id="tab-abiertos" onclick="S.casosTab='abiertos';render()">Abiertos · ${nA}</button><button class="${tab==='cerrados'?'on':''}" id="tab-cerrados" onclick="S.casosTab='cerrados';render()">Cerrados · ${nC}</button></div>
+   <input class="isml" id="buscar-casos" style="flex:1;min-width:200px" placeholder="Buscar por patente, cliente, código o taller" value="${esc(S.casosQ||'')}" oninput="S.casosQ=this.value;filtrarCasos()"></div>
+  ${grupos.length?grupos.map(g=>`<div class="grupo-dia"><div class="sec-h" style="margin:14px 0 8px"><h3 style="text-transform:capitalize">${g.lab} · <span class="cnt-dia">${g.items.length}</span></h3></div>
+   <div class="tw"><table><thead><tr><th>Caso</th><th>Hora</th><th>Vehículo</th><th>Qué</th><th>Taller</th><th>Estado</th></tr></thead><tbody>${g.items.map(fila).join('')}</tbody></table></div></div>`).join('')
+  :`<div class="empty">${ich('clip','',24)}<p>${tab==='cerrados'?'Todavía no hay casos cerrados.':'No hay casos abiertos.'}</p></div>`}
+  <p class="muted small" id="sin-resultados" style="display:none;margin-top:10px">No hay casos que coincidan con la búsqueda.</p>`;
+};
+window.filtrarCasos=function(){const q=(S.casosQ||'').toLowerCase().trim();let vis=0;
+ document.querySelectorAll('.grupo-dia').forEach(g=>{let n=0;g.querySelectorAll('.fila-caso').forEach(tr=>{const ok=!q||tr.dataset.q.includes(q);tr.style.display=ok?'':'none';if(ok)n++;});
+  g.style.display=n?'':'none';const c=g.querySelector('.cnt-dia');if(c)c.textContent=n;vis+=n;});
+ const e=$('#sin-resultados');if(e)e.style.display=vis||!q?'none':'block';};
+const _render2=window.render;
+window.render=function(){_render2();if(S.role==='fratello'&&S.fra==='casos'&&!S.fraCaso&&S.casosQ)filtrarCasos();};
 
 /* ---------- arranque ---------- */
 (async()=>{
