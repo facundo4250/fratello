@@ -1428,7 +1428,7 @@ function enviarPedido(){
 function vFratello(){
  const pend=S.casos.filter(c=>c.estado===5).length+S.casos.filter(c=>c.estado===7).length;
  const nav=[['pedidos','inbox','Pedidos',pend,pend>0],['casos','list','Casos',S.casos.length],['talleres','wrench','Talleres',TALLERES.filter(t=>t.activo!==false).length],['ranking','trophy','Ranking',TALLERES.length],['clientes','user','Clientes',CLIENTES.length],['marcas','tag','Marcas',MARCAS.length]];
- let body; if(S.fra==='clientes'&&S.fraCli) body=fFicha(); else if(S.fra==='pedidos'&&S.fraCaso) body=fCaso();
+ let body; if(S.fra==='clientes'&&S.fraCli) body=fFicha(); else if((S.fra==='pedidos'||S.fra==='casos')&&S.fraCaso) body=fCaso();
  else body=({pedidos:fPedidos,casos:fCasos,talleres:(window.fTalleres||fPedidos),ranking:fRanking,clientes:fClientes,marcas:fMarcas}[S.fra]||fPedidos)();
  return `<div class="desk"><div class="panel"><aside class="side"><div class="lg"><img src="${LOGO}" alt="Fratello Repuestos"><div>Mostrador</div></div>
   <nav>${nav.map(([k,ic,n,c,hot])=>`<button class="${S.fra===k?'on':''}" id="nav-${k}" onclick="S.fra='${k}';S.fraCaso=null;S.fraCli=null;S.fraTal=null;render()">${I(ic,19)}${n}<span class="cnt ${hot&&S.fra!==k?'hot':''}">${c}</span></button>`).join('')}</nav>
@@ -1505,7 +1505,7 @@ function despachar(id){const c=caso(id);c.estado=8;c.chat.taller.push({de:'mostr
  c.chat.cliente.push({de:'sys',txt:'Los repuestos salieron hacia el taller.',h:ahora()});render();toast('Despachado al taller','truck');}
 function fCasos(){
  return `<h2>Todos los casos</h2><div class="lead">Cada caso arranca con lo que el cliente contó en la app.</div><div class="tw"><table><thead><tr><th>Caso</th><th>Vehículo</th><th>Síntoma</th><th>Especialidad</th><th>Taller</th><th>Estado</th></tr></thead><tbody>
-  ${S.casos.map(c=>{const t=tal(c.taller),u=cli(c.pat),cat=triCat(c.cat);return `<tr class="ck" onclick="${[5,6,7].includes(c.estado)?`S.fra='pedidos';S.fraCaso='${c.id}';S.fraDraft=null;`:`S.fra='clientes';S.fraCli='${c.pat}';`}render()">
+  ${S.casos.map(c=>{const t=tal(c.taller),u=cli(c.pat),cat=triCat(c.cat);return `<tr class="ck" onclick="S.fra='casos';S.fraCaso='${c.id}';S.fraDraft=null;S.fraTab='cliente';S._bottom=true;render()">
    <td class="mono" style="font-weight:700">${c.id}</td><td><b>${esc(u.veh.marca)} ${esc(u.veh.modelo)}</b> ${u.veh.anio}</td><td class="muted">${cat.t} · ${c.resp[0]}</td><td>${ESP[c.esp].n}</td><td>${t.n}</td><td><span class="pill ${EST[c.estado].c}">${EST[c.estado].n}</span></td></tr>`;}).join('')}</tbody></table></div>`;
 }
 function fRanking(){
@@ -2308,7 +2308,7 @@ window.pintarPago=function(){_pintarPago();const c=caso(S.pago.id);if(!c||c.tipo
  m.innerHTML=m.innerHTML.replace('La mano de obra se la pagás al taller cuando retirás el vehículo.',c.entrega==='envio'?'El costo del envío se coordina por el chat.':'Lo retirás en Fratello cuando esté listo.')
   .replace('Pasás por Fratello y sale al taller','Pagás cuando lo retirás');};
 const _fCaso=window.fCaso;
-window.fCaso=function(){const c=caso(S.fraCaso);let h=_fCaso().replace('placeholder="145000"','placeholder="Sin cargar"');if(!c||c.tipo!=='consulta')return h;
+window.fCaso=function(){const c=caso(S.fraCaso);let h=ajustarFicha(c,_fCaso().replace('placeholder="145000"','placeholder="Sin cargar"'));if(!c||c.tipo!=='consulta')return h;
  h=h.replace('<h3>Diagnóstico del taller</h3>','<h3>Consulta directa del cliente</h3>').replace('Nota interna del mecánico:','Nota del cliente:')
   .replace(/<div class="field" style="max-width:270px;margin-top:12px"><label for="mo">[\s\S]*?<\/div>/,'')
   .replace('Despachar al taller',c.entrega==='envio'?'Marcar enviado':'Listo para retirar');
@@ -2372,6 +2372,32 @@ window.fPedidos=function(){const h=_fPedidos2(),L=S.casos.filter(c=>c.calif&&c.c
    <div class="muted small">${c.coment?'“'+esc(c.coment)+'”':'Sin comentario'} · ${c.id}${u.tel?' · '+esc(u.tel):''}</div></div>
    <button class="btn b-ghost b-sm" style="width:auto" onclick="S.fra='clientes';S.fraCli='${esc(c.pat)}';render()">Ver cliente</button>
    <button class="btn b-ghost b-sm" style="width:auto" onclick="revisarCalif('${c.id}')">Ya lo llamé</button></div>`;}).join('')}</div>`;
+ const i=h.indexOf('<div class="tw">');return i<0?blk+h:h.slice(0,i)+blk+h.slice(i);};
+
+
+/* ---------- chats: cualquier caso queda abierto con su conversación ---------- */
+function ajustarFicha(c,h){
+ if(!c)return h;
+ // ver la ficha del cliente desde el caso
+ h=h.replace(`<button class="btn b-ghost b-sm" onclick="S.fraCaso=null;S.fraDraft=null;render()">`,
+  `<span style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn b-ghost b-sm" style="width:auto" onclick="S.fra='clientes';S.fraCli='${esc(c.pat)}';S.fraCaso=null;render()">${I('user',16)} Ficha</button><button class="btn b-ghost b-sm" style="width:auto" onclick="S.fraCaso=null;S.fraDraft=null;render()">`);
+ h=h.replace(/(<span style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">[\s\S]*?Volver<\/button>)/,'$1</span>');
+ if(c.estado<5){
+  h=h.replace(/<div style="display:flex;gap:10px;margin-top:6px"><button class="btn b-ghost b-sm" id="btn-auto"[\s\S]*?<\/button>\s*<button id="cta-arm"[\s\S]*?<\/button><\/div>/,
+   `<div class="note n-info" style="margin-top:10px">${I('info',18)}<div>Todavía no hay pedido de repuestos: el caso está en <b>${(EST[c.estado]||{n:''}).n}</b>. La conversación queda guardada igual.</div></div>`);
+ }
+ return h;
+}
+const _fPedidos3=window.fPedidos;
+window.fPedidos=function(){const h=_fPedidos3();
+ const ult=a=>(a||[]).filter(m=>m.de!=='sys').slice(-1)[0]||{};
+ const L=S.casos.filter(c=>![5,6,7].includes(c.estado)&&(ult(c.chat.cliente).de==='cliente'||ult(c.chat.taller).de==='taller'));
+ if(!L.length)return h;
+ const blk=`<div class="pcard"><div class="ph"><div><h3>Mensajes sin responder · ${L.length}</h3><div class="muted small" style="margin-top:4px">Casos fuera de Pedidos donde el último mensaje es del cliente o del taller.</div></div></div>
+  ${L.map((c,i)=>{const u=cli(c.pat)||{nombre:'—'},mc=ult(c.chat.cliente),mt=ult(c.chat.taller),m=mc.de==='cliente'?mc:mt,quien=mc.de==='cliente'?'Cliente':'Taller';
+   return `<button class="row" style="width:100%;text-align:left;display:flex;gap:12px;align-items:center;padding:10px 0;${i?'border-top:1px solid var(--line-2)':''}" onclick="S.fra='casos';S.fraCaso='${c.id}';S.fraDraft=null;S.fraTab='${mc.de==='cliente'?'cliente':'taller'}';S._bottom=true;render()">
+    <span class="mono" style="font-weight:700">${c.id}</span><div style="flex:1;min-width:0"><b>${esc(u.nombre)}</b> <span class="pill ${(EST[c.estado]||{c:'p-n'}).c}" style="margin-left:6px">${(EST[c.estado]||{n:''}).n}</span>
+    <div class="muted small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${quien}: ${esc(m.txt||'')} · ${m.h||''}</div></div>${I('right',18,2,'color:var(--brand)')}</button>`;}).join('')}</div>`;
  const i=h.indexOf('<div class="tw">');return i<0?blk+h:h.slice(0,i)+blk+h.slice(i);};
 
 /* ---------- arranque ---------- */
