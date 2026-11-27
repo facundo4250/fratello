@@ -1310,7 +1310,7 @@ function mCard(c){
 function mCasos(){
  const t=tal(MI_TALLER),mios=S.casos.filter(c=>c.taller===MI_TALLER);
  const G=[['Para proponer turno',mios.filter(c=>c.estado===1)],['Para diagnosticar',mios.filter(c=>[3,4].includes(c.estado))],
-  ['Esperando al cliente',mios.filter(c=>c.estado===2)],['Esperando repuesto',mios.filter(c=>[5,6,7].includes(c.estado))],['Repuesto en el taller',mios.filter(c=>c.estado===8)],['Terminados',mios.filter(c=>[9,10].includes(c.estado))]];
+  ['Esperando al cliente',mios.filter(c=>c.estado===2)],['Esperando repuesto',mios.filter(c=>[5,6,7].includes(c.estado))],['Repuesto en el taller',mios.filter(c=>c.estado===8)],['Esperando que lo retiren',mios.filter(c=>c.estado===9)],['Terminados',mios.filter(c=>[10,15].includes(c.estado))]];
  return {head:`<div class="h-brand"><img src="${SHIELD}" alt="" style="height:38px"><div style="flex:1;line-height:1.15"><b style="color:#fff;font-size:16px;display:block">${t.n}</b>
    <span style="font-family:var(--f-disp);color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Red Fratello</span></div></div>`+hBig('Casos',t.mec),
   body:`<div class="sec" style="padding-top:2px">${G.filter(g=>g[1].length).map(([h,a])=>`<div class="sec-h"><h3>${h} · ${a.length}</h3></div><div class="group">${a.map(mCard).join('')}</div>`).join('')}
@@ -1765,7 +1765,7 @@ function mapTalleres(ts,te,ag){
   const agTs={};(ag||[]).filter(a=>a.taller_id===t.id&&a.libre&&Date.parse(a.inicio)>Date.now())
     .sort((a,b)=>a.inicio<b.inicio?-1:1).forEach(a=>{agTs[fSlot(a.inicio)]=a.inicio;});
   return {id:t.id,n:t.nombre,mec:t.responsable,zona:t.zona||'',dist:t.dist_km!=null?Number(t.dist_km):'—',
-   cal:t.calificacion!=null?Number(t.calificacion):'—',c:t.color||'#24242A',bio:t.bio||'',
+   cal:t.calif_n>0?Number(t.calif_prom):t.calificacion!=null?Number(t.calificacion):'—',califN:t.calif_n||0,c:t.color||'#24242A',bio:t.bio||'',
    esp:(te||[]).filter(x=>x.taller_id===t.id).map(x=>x.especialidad_id),agTs,_agenda:Object.keys(agTs),agenda:[],
    activo:t.activo!==false,dir:t.direccion||'',tel:t.telefono||'',distRaw:t.dist_km,calRaw:t.calificacion,colRaw:t.color,
    est:EST_L[t.estado_lealtad]||'activa',
@@ -1796,6 +1796,7 @@ function mapCaso(r){
  return {id:r.codigo,_id:r.id,estado:vEst,_est:r.estado,tipo:r.tipo||'taller',entrega:r.entrega,dir:r.direccion_entrega,pat:r.patente,cat:r.categoria,resp:r.respuestas||[],esp:cons?'consulta':r.especialidad_id,urg:r.urgencia,
   hint:r.pista,taller:r.taller_id,creado:fCreado(r.created_at),_creado:r.created_at,_cerrado:r.cerrado_at,km:r.km_ingreso,
   turno:r.turno?{slot:fSlot(r.turno),estado:r.estado>=3?'confirmado':'propuesto'}:null,turnoNota:r.turno_nota,
+  calif:r.calificacion,coment:r.comentario,auto:r.cierre_auto,revisada:r.calif_revisada,
   diag:r.diagnostico,criterio:r.criterio,nota:r.nota_taller,manoObra:r.mano_obra!=null?Number(r.mano_obra):null,pedido,elegidas,
   pago:pg?(MEDIO[pg.medio]||'Pago')+' · '+fHora(pg.created_at)+(pg.estado==='pendiente'?' · a verificar':''):null,chat};
 }
@@ -1946,14 +1947,14 @@ window.proponer=function(id,s){const ts=(tal(MI_TALLER)||{agTs:{}}).agTs[s];
 window.recibir=id=>act(()=>upd('mecanico',id,{estado:4}),'Vehículo recibido','check');
 window.sinRepuesto=async id=>{const c=caso(id);
  if(await act(()=>upd('mecanico',id,{estado:10,diagnostico:c.diag||'Trabajo resuelto sin cambio de piezas (declarado por el taller).'}),'Declarado sin repuestos. No cuenta en contra.','check'))mgo('casos');};
-window.terminar=id=>act(()=>upd('mecanico',id,{estado:9}),'Quedó en la historia del vehículo','pulse');
+window.terminar=id=>act(()=>upd('mecanico',id,{estado:9}),'Listo. Le avisamos al cliente para que lo retire.','pulse');
 window.enviarPedido=async function(){
  const c=caso(S.mecCaso),d=S.mecDraft,sb=D.mecanico.sb;
  const items=d.items.filter(i=>i.rubro&&i.desc.trim()).map(i=>({caso_id:c._id,rubro_id:i.rubro,descripcion:i.desc.trim(),oem:(i.oem||'').trim()||null,cantidad:i.cant||1,eco_habilitada:!!i.ecoOk}));
  const ok=await act(async()=>{
   await q(sb.from('pedido_items').delete().eq('caso_id',c._id));
   await q(sb.from('pedido_items').insert(items));
-  await q(sb.from('casos').update({estado:5,diagnostico:d.diag.trim(),criterio:d.criterio,nota_taller:d.nota.trim()||null}).eq('id',c._id));
+  await q(sb.from('casos').update({estado:5,diagnostico:d.diag.trim(),criterio:d.criterio,nota_taller:d.nota.trim()||null,mano_obra:+d.manoObra>0?+d.manoObra:null}).eq('id',c._id));
  },'Pedido enviado al mostrador','send');
  if(ok){S.mecDraft=null;mgo('caso');}
 };
@@ -2048,7 +2049,7 @@ window.fTalleres=function(){
  const ops=`<option value="">Elegí qué es…</option>${act.map(t=>`<option value="mec:${t.id}">Mecánico · ${esc(t.n)}</option>`).join('')}<option value="fratello">Mostrador de Fratello (ve precios y tarjetas verdes)</option>`;
  const casos=id=>S.casos.filter(c=>c.taller===id).length;
  const fila=t=>{const k=stats(t),m=mecs.filter(s=>s.taller_id===t.id);
-  return `<tr class="ck" onclick="abrirTaller('${t.id}')"${t.activo?'':' style="opacity:.6"'}><td><div style="display:flex;gap:10px;align-items:center">${avTaller(t,32)}<div><b>${esc(t.n)}</b><div class="muted small">${esc(t.mec)}</div></div></div></td>
+  return `<tr class="ck" onclick="abrirTaller('${t.id}')"${t.activo?'':' style="opacity:.6"'}><td><div style="display:flex;gap:10px;align-items:center">${avTaller(t,32)}<div><b>${esc(t.n)}</b><div class="muted small">${esc(t.mec)}${t.califN?' · ★ '+Number(t.cal).toFixed(1)+' ('+t.califN+')':''}</div></div></div></td>
    <td>${esc(t.zona)}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap">${t.esp.map(e=>ESP[e]?`<span class="pill p-n" style="font-size:11px">${ESP[e].n}</span>`:'').join('')}</div></td>
    <td class="mono">${m.length?m.length+' cuenta'+(m.length>1?'s':''):'<span class="muted">Sin cuenta</span>'}</td><td class="mono">${casos(t.id)}</td>
    <td><span class="pill ${k.c}">${k.estado}</span></td><td><span class="pill ${t.activo?'p-ok':'p-n'}">${t.activo?'Activo':'De baja'}</span></td>
@@ -2287,7 +2288,7 @@ window.enviarConsulta=async function(){
  if(ok){S.cons=null;S.cliCaso=cod;go('caso');}
 };
 const _cCaso=window.cCaso;
-window.cCaso=function(){const c=caso(S.cliCaso);if(!c||c.tipo!=='consulta')return _cCaso();
+window.cCaso=function(){const c=caso(S.cliCaso);if(!c)return _cCaso();if(c.tipo!=='consulta')return conRetiro(c,_cCaso());
  const e=EST[c.estado]||EST[5],last=c.chat.cliente.filter(m=>m.de!=='sys').slice(-1)[0];
  const pasos=['Consulta','Opciones','Pagado',c.entrega==='envio'?'Enviado':'Listo','Entregado'],idx={5:1,6:2,7:3,12:4,13:4,14:5}[c.estado]||0;
  return {head:hBar('Consulta de repuestos',c.id,"go('casos')"),body:`<div class="pad">
@@ -2307,7 +2308,7 @@ window.pintarPago=function(){_pintarPago();const c=caso(S.pago.id);if(!c||c.tipo
  m.innerHTML=m.innerHTML.replace('La mano de obra se la pagás al taller cuando retirás el vehículo.',c.entrega==='envio'?'El costo del envío se coordina por el chat.':'Lo retirás en Fratello cuando esté listo.')
   .replace('Pasás por Fratello y sale al taller','Pagás cuando lo retirás');};
 const _fCaso=window.fCaso;
-window.fCaso=function(){const c=caso(S.fraCaso);let h=_fCaso();if(!c||c.tipo!=='consulta')return h;
+window.fCaso=function(){const c=caso(S.fraCaso);let h=_fCaso().replace('placeholder="145000"','placeholder="Sin cargar"');if(!c||c.tipo!=='consulta')return h;
  h=h.replace('<h3>Diagnóstico del taller</h3>','<h3>Consulta directa del cliente</h3>').replace('Nota interna del mecánico:','Nota del cliente:')
   .replace(/<div class="field" style="max-width:270px;margin-top:12px"><label for="mo">[\s\S]*?<\/div>/,'')
   .replace('Despachar al taller',c.entrega==='envio'?'Marcar enviado':'Listo para retirar');
@@ -2321,6 +2322,57 @@ window.fPedidos=function(){const h=_fPedidos(),L=S.casos.filter(c=>c.tipo==='con
    <div class="muted small">${c.entrega==='envio'?'Envío a '+esc(c.dir||''):'Retira en el local'} · ${esc(c.pedido.map(p=>p.desc).join(', '))}</div></div>
    <button class="btn b-ok b-sm" style="width:auto" id="btn-entregado-${c.id}" onclick="entregarConsulta('${c.id}')">${I('check',16)} Entregado</button></div>`;}).join('')}</div>`;};
 window.entregarConsulta=id=>act(()=>upd('fratello',id,{estado:9}),'Consulta cerrada como entregada','check');
+
+
+/* ---------- retiro confirmado por el cliente y calificación ---------- */
+EST[9]={n:'Listo para retirar',c:'p-gold',d:'Trabajo terminado. Pasá a retirar el vehículo y confirmalo acá.'};
+EST[15]={n:'Retirado',c:'p-n',d:'Retiraste el vehículo. Caso cerrado.'};
+const estrellas=(n,sz=16)=>[1,2,3,4,5].map(i=>I('star',sz,2,i<=n?'fill:currentColor;color:var(--gold-dark)':'color:var(--ink-4)')).join('');
+function conRetiro(c,r){
+ if(!r||!r.body||![9,15].includes(c.estado))return r;
+ let blk='';
+ if(c.estado===9){
+  S.ret=S.ret&&S.ret.id===c.id?S.ret:{id:c.id,n:0,com:''};
+  blk=`<div class="card" id="card-retiro" style="margin-top:12px;box-shadow:0 0 0 2px var(--gold),var(--sh)"><b style="display:block;font-size:16px">¿Ya retiraste el vehículo?</b>
+   <p class="muted small" style="margin-top:3px">Confirmalo y contanos cómo te fue con el taller. Si no lo confirmás, el caso se cierra solo a los 3 días.</p>
+   <div style="display:flex;gap:4px;margin:10px 0 8px">${[1,2,3,4,5].map(n=>`<button id="star-${n}" aria-label="${n} de 5" onclick="S.ret.n=${n};render()" style="padding:2px">${I('star',32,1.8,n<=S.ret.n?'fill:currentColor;color:var(--gold-dark)':'color:var(--ink-4)')}</button>`).join('')}</div>
+   <textarea id="ret-com" class="inp" style="min-height:58px" placeholder="Comentario (opcional)" oninput="S.ret.com=this.value">${esc(S.ret.com)}</textarea>
+   <button class="btn b-gold" id="btn-retiro" style="margin-top:10px" onclick="confirmarRetiro('${c.id}')">${I('check',18)} Confirmar que lo retiré</button></div>`;
+ } else {
+  blk=`<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:flex-start">${ich('check','ok')}<div><b style="display:block">${c.auto?'Caso cerrado automáticamente':'Retiraste el vehículo'}</b>
+   ${c.calif?`<div style="display:flex;gap:2px;margin-top:4px">${estrellas(c.calif)}</div>`:''}${c.coment?`<p class="muted" style="margin-top:4px;font-style:italic">“${esc(c.coment)}”</p>`:''}</div></div>`;
+ }
+ const k='<div class="sec-h"><h3>Taller</h3></div>',i=r.body.indexOf(k);
+ r.body=i<0?r.body+blk:r.body.slice(0,i)+blk+r.body.slice(i);return r;
+}
+window.confirmarRetiro=async function(id){
+ if(!S.ret||!S.ret.n){toast('Elegí de 1 a 5 estrellas','alert');return;}
+ if(await act(()=>q(D.cliente.sb.rpc('confirmar_retiro',{p_caso:cid(id),p_estrellas:S.ret.n,p_comentario:S.ret.com||null})),'¡Gracias! El caso quedó cerrado.','check'))S.ret=null;
+};
+const _mPedir=window.mPedir;
+window.mPedir=function(){const r=_mPedir(),k='<div class="field" style="margin-top:14px"><label for="pn">',i=r.body.indexOf(k);
+ const f=`<div class="field" style="margin-top:14px"><label for="pmo">Mano de obra <i>· la ve el cliente en el total</i></label><input id="pmo" class="inp mono" type="number" min="0" step="500" value="${esc(S.mecDraft.manoObra||'')}" oninput="S.mecDraft.manoObra=this.value" placeholder="Sin cargar"></div>`;
+ if(i>=0)r.body=r.body.slice(0,i)+f+r.body.slice(i);return r;};
+const _mCaso=window.mCaso;
+window.mCaso=function(){const r=_mCaso(),c=caso(S.mecCaso);if(!c||![9,15].includes(c.estado))return r;
+ const blk=c.estado===9?`<div class="note n-gold" style="margin-top:12px">${I('clock',18)}<div><b>Esperando que el cliente lo retire.</b> Cuando lo confirme vas a ver su calificación. Si no confirma, se cierra solo a los 3 días.</div></div>`
+  :`<div class="card" style="margin-top:12px"><b style="display:block">${c.auto?'Cerrado automáticamente':'El cliente retiró el vehículo'}</b>${c.calif?`<div style="display:flex;gap:2px;margin-top:5px">${estrellas(c.calif)}</div>`:''}${c.coment?`<p class="muted" style="margin-top:4px;font-style:italic">“${esc(c.coment)}”</p>`:''}</div>`;
+ const k='<div style="height:14px"></div></div>',i=r.body.lastIndexOf(k);r.body=i<0?r.body+blk:r.body.slice(0,i)+blk+r.body.slice(i);return r;};
+const _mCuenta3=window.mCuenta;
+window.mCuenta=function(){const r=_mCuenta3(),t=tal(MI_TALLER);if(!t)return r;
+ const blk=`<div class="sec"><div class="card" style="display:flex;gap:12px;align-items:center">${ich('star','gold')}<div style="flex:1"><b style="display:block">Calificación de tus clientes</b>
+  <span class="muted small">${t.califN?`${Number(t.cal).toFixed(1)} de 5 · ${t.califN} calificaci${t.califN>1?'ones':'ón'}`:'Todavía no hay calificaciones'}</span></div>${t.califN?`<div style="display:flex;gap:1px">${estrellas(Math.round(t.cal),15)}</div>`:''}</div></div>`;
+ r.body=blk+r.body;return r;};
+window.revisarCalif=id=>act(()=>upd('fratello',id,{calif_revisada:true}),'Marcada como revisada','check');
+const _fPedidos2=window.fPedidos;
+window.fPedidos=function(){const h=_fPedidos2(),L=S.casos.filter(c=>c.calif&&c.calif<=2&&!c.revisada);if(!L.length)return h;
+ const blk=`<div class="pcard" style="border:2px solid var(--crit-soft)"><div class="ph"><div><h3>Calificaciones bajas · ${L.length}</h3><div class="muted small" style="margin-top:4px">Clientes que calificaron al taller con 1 o 2 estrellas. Conviene llamarlos.</div></div></div>
+  ${L.map((c,i)=>{const u=cli(c.pat)||{nombre:'—',tel:''},t=tal(c.taller)||{n:'—'};return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 0;${i?'border-top:1px solid var(--line-2)':''}">
+   <div style="display:flex;gap:1px">${estrellas(c.calif,15)}</div><div style="flex:1;min-width:220px"><b>${esc(u.nombre)}</b> · <span class="mono">${esc(c.pat)}</span> · ${esc(t.n)}
+   <div class="muted small">${c.coment?'“'+esc(c.coment)+'”':'Sin comentario'} · ${c.id}${u.tel?' · '+esc(u.tel):''}</div></div>
+   <button class="btn b-ghost b-sm" style="width:auto" onclick="S.fra='clientes';S.fraCli='${esc(c.pat)}';render()">Ver cliente</button>
+   <button class="btn b-ghost b-sm" style="width:auto" onclick="revisarCalif('${c.id}')">Ya lo llamé</button></div>`;}).join('')}</div>`;
+ const i=h.indexOf('<div class="tw">');return i<0?blk+h:h.slice(0,i)+blk+h.slice(i);};
 
 /* ---------- arranque ---------- */
 (async()=>{
